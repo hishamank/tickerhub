@@ -24,6 +24,8 @@ import { InMemoryHealthStore } from "./adapters/stores/in-memory-health-store.js
 import { ProviderRegistry } from "./config/provider-registry.js";
 import { SmartAggregator } from "./aggregator/smart-aggregator.js";
 import { SwrCache } from "./cache/swr-cache.js";
+import { HealthMonitor } from "./health/health-monitor.js";
+import { flushHealthMetrics } from "./health/flush.js";
 import { ProviderHealthRepository } from "./repositories/provider-health-repository.js";
 import { ProviderAggregatorService } from "./services/provider-aggregator.service.js";
 
@@ -53,6 +55,14 @@ export interface Aggregator {
   service: ProviderAggregatorService;
   registry: ProviderRegistry;
   healthRepository: ProviderHealthRepository;
+  /** Live in-memory health monitor shared with the aggregator. */
+  healthMonitor: HealthMonitor;
+  /**
+   * Snapshot current provider health into the configured health store.
+   * Call on an interval (e.g. every 30s) for a durable time series. Returns
+   * the number of records written.
+   */
+  flushHealthMetrics: () => Promise<number>;
 }
 
 /**
@@ -74,10 +84,15 @@ export function createAggregator(
   const configStore = options.configStore ?? new InMemoryConfigStore();
   const healthStore = options.healthStore ?? new InMemoryHealthStore();
 
+  // One HealthMonitor shared between the aggregator (which records into it) and
+  // the flush helper (which snapshots it to the store).
+  const healthMonitor = new HealthMonitor();
+
   const registry = new ProviderRegistry(configStore, options.logger);
   const aggregator = new SmartAggregator({
     registry,
     credentials,
+    healthMonitor,
     ...(options.logger ? { logger: options.logger } : {}),
   });
   const swrCache = new SwrCache(cache, options.logger);
@@ -87,5 +102,11 @@ export function createAggregator(
     healthStore,
   );
 
-  return { service, registry, healthRepository };
+  return {
+    service,
+    registry,
+    healthRepository,
+    healthMonitor,
+    flushHealthMetrics: () => flushHealthMetrics(healthMonitor, healthStore),
+  };
 }

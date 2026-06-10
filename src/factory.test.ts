@@ -35,4 +35,14 @@ describe("createAggregator", () => {
     // Health repository surfaces the in-memory config store (empty by default).
     expect(await healthRepository.getAllConfigs()).toEqual([]);
   });
+
+  it("shares one health monitor and flushes it to the store", async () => {
+    const { healthMonitor, flushHealthMetrics } = createAggregator();
+    healthMonitor.recordRequest("finnhub", {
+      success: true,
+      latencyMs: 10,
+      timestamp: new Date(0),
+    });
+    expect(await flushHealthMetrics()).toBe(1);
+  });
 });

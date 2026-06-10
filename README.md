@@ -111,12 +111,21 @@ Selection is priority-ordered per data type with automatic fallback; see
 
 ## Health monitoring
 
+The aggregator records a live in-memory health snapshot per provider. To build
+a durable time series, flush it to the configured `HealthMetricsStore` on an
+interval (and prune old rows):
+
 ```ts
-const { service, healthRepository } = createAggregator({ /* ... */ });
+const { service, flushHealthMetrics, healthRepository } = createAggregator({
+  /* configStore, healthStore, ... */
+});
 
 service.getProviderHealth("finnhub"); // { status, successRate, avgLatency }
 
-// Persist/prune metrics (e.g. from a scheduled job) via the injected store:
+// Persist a snapshot every 30s (use the SQLite store for durability):
+setInterval(() => void flushHealthMetrics(), 30_000);
+
+// Prune metrics older than 7 days (e.g. from a daily job):
 await healthRepository.deleteOlderThan(new Date(Date.now() - 7 * 864e5));
 ```
 

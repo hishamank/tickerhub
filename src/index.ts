@@ -128,6 +128,7 @@ export {
   type DisabledProvider,
   type RecoveryConfig,
 } from "./health/recovery-manager.js";
+export { flushHealthMetrics } from "./health/flush.js";
 export { ProviderHealthRepository } from "./repositories/provider-health-repository.js";
 
 // === Rate limiting ===
