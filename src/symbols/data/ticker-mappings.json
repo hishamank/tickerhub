@@ -1,0 +1,975 @@
+[
+  {
+    "original": "NOVO-B.CO",
+    "adr": "NVO",
+    "originalExchange": "CPH",
+    "adrExchange": "NYSE",
+    "companyName": "Novo Nordisk A/S",
+    "country": "Denmark"
+  },
+  {
+    "original": "NOVO-B",
+    "adr": "NVO",
+    "originalExchange": "CPH",
+    "adrExchange": "NYSE",
+    "companyName": "Novo Nordisk A/S",
+    "country": "Denmark",
+    "currency": "DKK"
+  },
+  {
+    "original": "NOVOBC",
+    "adr": "NVO",
+    "originalExchange": "CPH",
+    "adrExchange": "NYSE",
+    "companyName": "Novo Nordisk A/S",
+    "country": "Denmark",
+    "currency": "DKK"
+  },
+  {
+    "original": "NESN.SW",
+    "adr": "NSRGY",
+    "originalExchange": "SIX",
+    "adrExchange": "OTC",
+    "companyName": "Nestlé S.A.",
+    "country": "Switzerland"
+  },
+  {
+    "original": "NESN",
+    "adr": "NSRGY",
+    "originalExchange": "SIX",
+    "adrExchange": "OTC",
+    "companyName": "Nestlé S.A.",
+    "country": "Switzerland",
+    "currency": "CHF"
+  },
+  {
+    "original": "ROG.SW",
+    "adr": "RHHBY",
+    "originalExchange": "SIX",
+    "adrExchange": "OTC",
+    "companyName": "Roche Holding AG",
+    "country": "Switzerland"
+  },
+  {
+    "original": "ROG",
+    "adr": "RHHBY",
+    "originalExchange": "SIX",
+    "adrExchange": "OTC",
+    "companyName": "Roche Holding AG",
+    "country": "Switzerland",
+    "currency": "CHF"
+  },
+  {
+    "original": "NOVN.SW",
+    "adr": "NVSNF",
+    "originalExchange": "SIX",
+    "adrExchange": "OTC",
+    "companyName": "Novartis AG",
+    "country": "Switzerland"
+  },
+  {
+    "original": "NOVN",
+    "adr": "NVS",
+    "originalExchange": "SIX",
+    "adrExchange": "NYSE",
+    "companyName": "Novartis AG",
+    "country": "Switzerland",
+    "currency": "CHF"
+  },
+  {
+    "original": "AZN.L",
+    "adr": "AZN",
+    "originalExchange": "LSE",
+    "adrExchange": "NASDAQ",
+    "companyName": "AstraZeneca PLC",
+    "country": "United Kingdom"
+  },
+  {
+    "original": "AZN",
+    "adr": "AZN",
+    "originalExchange": "LSE",
+    "adrExchange": "NASDAQ",
+    "companyName": "AstraZeneca PLC",
+    "country": "United Kingdom",
+    "currency": "GBP"
+  },
+  {
+    "original": "BP.L",
+    "adr": "BP",
+    "originalExchange": "LSE",
+    "adrExchange": "NYSE",
+    "companyName": "BP p.l.c.",
+    "country": "United Kingdom"
+  },
+  {
+    "original": "BP",
+    "adr": "BP",
+    "originalExchange": "LSE",
+    "adrExchange": "NYSE",
+    "companyName": "BP p.l.c.",
+    "country": "United Kingdom",
+    "currency": "GBP"
+  },
+  {
+    "original": "SHEL.L",
+    "adr": "SHEL",
+    "originalExchange": "LSE",
+    "adrExchange": "NYSE",
+    "companyName": "Shell plc",
+    "country": "United Kingdom"
+  },
+  {
+    "original": "SHEL",
+    "adr": "SHEL",
+    "originalExchange": "LSE",
+    "adrExchange": "NYSE",
+    "companyName": "Shell plc",
+    "country": "United Kingdom",
+    "currency": "GBP"
+  },
+  {
+    "original": "HSBA.L",
+    "adr": "HSBC",
+    "originalExchange": "LSE",
+    "adrExchange": "NYSE",
+    "companyName": "HSBC Holdings plc",
+    "country": "United Kingdom"
+  },
+  {
+    "original": "HSBA",
+    "adr": "HSBC",
+    "originalExchange": "LSE",
+    "adrExchange": "NYSE",
+    "companyName": "HSBC Holdings plc",
+    "country": "United Kingdom",
+    "currency": "GBP"
+  },
+  {
+    "original": "GSK.L",
+    "adr": "GSK",
+    "originalExchange": "LSE",
+    "adrExchange": "NYSE",
+    "companyName": "GSK plc",
+    "country": "United Kingdom"
+  },
+  {
+    "original": "GSK",
+    "adr": "GSK",
+    "originalExchange": "LSE",
+    "adrExchange": "NYSE",
+    "companyName": "GSK plc",
+    "country": "United Kingdom",
+    "currency": "GBP"
+  },
+  {
+    "original": "DGE.L",
+    "adr": "DEO",
+    "originalExchange": "LSE",
+    "adrExchange": "NYSE",
+    "companyName": "Diageo plc",
+    "country": "United Kingdom"
+  },
+  {
+    "original": "DGE",
+    "adr": "DEO",
+    "originalExchange": "LSE",
+    "adrExchange": "NYSE",
+    "companyName": "Diageo plc",
+    "country": "United Kingdom",
+    "currency": "GBP"
+  },
+  {
+    "original": "ASML.AS",
+    "adr": "ASML",
+    "originalExchange": "Euronext",
+    "adrExchange": "NASDAQ",
+    "companyName": "ASML Holding N.V.",
+    "country": "Netherlands"
+  },
+  {
+    "original": "ASML",
+    "adr": "ASML",
+    "originalExchange": "Euronext",
+    "adrExchange": "NASDAQ",
+    "companyName": "ASML Holding N.V.",
+    "country": "Netherlands",
+    "currency": "EUR"
+  },
+  {
+    "original": "PHIA.AS",
+    "adr": "PHG",
+    "originalExchange": "Euronext",
+    "adrExchange": "NYSE",
+    "companyName": "Koninklijke Philips N.V.",
+    "country": "Netherlands"
+  },
+  {
+    "original": "PHIA",
+    "adr": "PHG",
+    "originalExchange": "Euronext",
+    "adrExchange": "NYSE",
+    "companyName": "Koninklijke Philips N.V.",
+    "country": "Netherlands",
+    "currency": "EUR"
+  },
+  {
+    "original": "HEIA.AS",
+    "adr": "HEINY",
+    "originalExchange": "Euronext",
+    "adrExchange": "OTC",
+    "companyName": "Heineken N.V.",
+    "country": "Netherlands"
+  },
+  {
+    "original": "HEIA",
+    "adr": "HEINY",
+    "originalExchange": "Euronext",
+    "adrExchange": "OTC",
+    "companyName": "Heineken N.V.",
+    "country": "Netherlands",
+    "currency": "EUR"
+  },
+  {
+    "original": "SAP.DE",
+    "adr": "SAP",
+    "originalExchange": "XETRA",
+    "adrExchange": "NYSE",
+    "companyName": "SAP SE",
+    "country": "Germany"
+  },
+  {
+    "original": "SAP",
+    "adr": "SAP",
+    "originalExchange": "XETRA",
+    "adrExchange": "NYSE",
+    "companyName": "SAP SE",
+    "country": "Germany",
+    "currency": "EUR"
+  },
+  {
+    "original": "SIE.DE",
+    "adr": "SIEGY",
+    "originalExchange": "XETRA",
+    "adrExchange": "OTC",
+    "companyName": "Siemens AG",
+    "country": "Germany"
+  },
+  {
+    "original": "SIE",
+    "adr": "SIEGY",
+    "originalExchange": "XETRA",
+    "adrExchange": "OTC",
+    "companyName": "Siemens AG",
+    "country": "Germany",
+    "currency": "EUR"
+  },
+  {
+    "original": "ALV.DE",
+    "adr": "AZSEY",
+    "originalExchange": "XETRA",
+    "adrExchange": "OTC",
+    "companyName": "Allianz SE",
+    "country": "Germany"
+  },
+  {
+    "original": "ALV",
+    "adr": "AZSEY",
+    "originalExchange": "XETRA",
+    "adrExchange": "OTC",
+    "companyName": "Allianz SE",
+    "country": "Germany",
+    "currency": "EUR"
+  },
+  {
+    "original": "BAS.DE",
+    "adr": "BASFY",
+    "originalExchange": "XETRA",
+    "adrExchange": "OTC",
+    "companyName": "BASF SE",
+    "country": "Germany"
+  },
+  {
+    "original": "BAS",
+    "adr": "BASFY",
+    "originalExchange": "XETRA",
+    "adrExchange": "OTC",
+    "companyName": "BASF SE",
+    "country": "Germany",
+    "currency": "EUR"
+  },
+  {
+    "original": "MBG.DE",
+    "adr": "MBGAF",
+    "originalExchange": "XETRA",
+    "adrExchange": "OTC",
+    "companyName": "Mercedes-Benz Group AG",
+    "country": "Germany"
+  },
+  {
+    "original": "MBG",
+    "adr": "MBGAF",
+    "originalExchange": "XETRA",
+    "adrExchange": "OTC",
+    "companyName": "Mercedes-Benz Group AG",
+    "country": "Germany",
+    "currency": "EUR"
+  },
+  {
+    "original": "VOW3.DE",
+    "adr": "VWAGY",
+    "originalExchange": "XETRA",
+    "adrExchange": "OTC",
+    "companyName": "Volkswagen AG",
+    "country": "Germany"
+  },
+  {
+    "original": "VOW3",
+    "adr": "VWAGY",
+    "originalExchange": "XETRA",
+    "adrExchange": "OTC",
+    "companyName": "Volkswagen AG",
+    "country": "Germany",
+    "currency": "EUR"
+  },
+  {
+    "original": "ADS.DE",
+    "adr": "ADDYY",
+    "originalExchange": "XETRA",
+    "adrExchange": "OTC",
+    "companyName": "adidas AG",
+    "country": "Germany"
+  },
+  {
+    "original": "ADS",
+    "adr": "ADDYY",
+    "originalExchange": "XETRA",
+    "adrExchange": "OTC",
+    "companyName": "adidas AG",
+    "country": "Germany",
+    "currency": "EUR"
+  },
+  {
+    "original": "MC.PA",
+    "adr": "LVMUY",
+    "originalExchange": "Euronext",
+    "adrExchange": "OTC",
+    "companyName": "LVMH Moët Hennessy Louis Vuitton SE",
+    "country": "France"
+  },
+  {
+    "original": "MC",
+    "adr": "LVMUY",
+    "originalExchange": "Euronext",
+    "adrExchange": "OTC",
+    "companyName": "LVMH Moët Hennessy Louis Vuitton SE",
+    "country": "France",
+    "currency": "EUR"
+  },
+  {
+    "original": "OR.PA",
+    "adr": "LRLCY",
+    "originalExchange": "Euronext",
+    "adrExchange": "OTC",
+    "companyName": "L",
+    "country": "France"
+  },
+  {
+    "original": "OR",
+    "adr": "LRLCY",
+    "originalExchange": "Euronext",
+    "adrExchange": "OTC",
+    "companyName": "L",
+    "country": "France",
+    "currency": "EUR"
+  },
+  {
+    "original": "SAN.PA",
+    "adr": "SNY",
+    "originalExchange": "Euronext",
+    "adrExchange": "NASDAQ",
+    "companyName": "Sanofi",
+    "country": "France"
+  },
+  {
+    "original": "SAN",
+    "adr": "SNY",
+    "originalExchange": "Euronext",
+    "adrExchange": "NASDAQ",
+    "companyName": "Sanofi",
+    "country": "France",
+    "currency": "EUR"
+  },
+  {
+    "original": "TTE.PA",
+    "adr": "TTE",
+    "originalExchange": "Euronext",
+    "adrExchange": "NYSE",
+    "companyName": "TotalEnergies SE",
+    "country": "France"
+  },
+  {
+    "original": "TTE",
+    "adr": "TTE",
+    "originalExchange": "Euronext",
+    "adrExchange": "NYSE",
+    "companyName": "TotalEnergies SE",
+    "country": "France",
+    "currency": "EUR"
+  },
+  {
+    "original": "AIR.PA",
+    "adr": "EADSY",
+    "originalExchange": "Euronext",
+    "adrExchange": "OTC",
+    "companyName": "Airbus SE",
+    "country": "France"
+  },
+  {
+    "original": "AIR",
+    "adr": "EADSY",
+    "originalExchange": "Euronext",
+    "adrExchange": "OTC",
+    "companyName": "Airbus SE",
+    "country": "France",
+    "currency": "EUR"
+  },
+  {
+    "original": "7203.T",
+    "adr": "TM",
+    "originalExchange": "TSE",
+    "adrExchange": "NYSE",
+    "companyName": "Toyota Motor Corporation",
+    "country": "Japan"
+  },
+  {
+    "original": "6758.T",
+    "adr": "SONY",
+    "originalExchange": "TSE",
+    "adrExchange": "NYSE",
+    "companyName": "Sony Group Corporation",
+    "country": "Japan"
+  },
+  {
+    "original": "9984.T",
+    "adr": "SFTBY",
+    "originalExchange": "TSE",
+    "adrExchange": "OTC",
+    "companyName": "SoftBank Group Corp.",
+    "country": "Japan"
+  },
+  {
+    "original": "6861.T",
+    "adr": "KEYCY",
+    "originalExchange": "TSE",
+    "adrExchange": "OTC",
+    "companyName": "Keyence Corporation",
+    "country": "Japan"
+  },
+  {
+    "original": "4063.T",
+    "adr": "SHINRY",
+    "originalExchange": "TSE",
+    "adrExchange": "OTC",
+    "companyName": "Shin-Etsu Chemical Co., Ltd.",
+    "country": "Japan"
+  },
+  {
+    "original": "4502.T",
+    "adr": "TAK",
+    "originalExchange": "TSE",
+    "adrExchange": "OTC",
+    "companyName": "Takeda Pharmaceutical Company Limited",
+    "country": "Japan"
+  },
+  {
+    "original": "4503.T",
+    "adr": "ASTLL",
+    "originalExchange": "TSE",
+    "adrExchange": "OTC",
+    "companyName": "Astellas Pharma Inc.",
+    "country": "Japan"
+  },
+  {
+    "original": "6902.T",
+    "adr": "DENSO",
+    "originalExchange": "TSE",
+    "adrExchange": "OTC",
+    "companyName": "Denso Corporation",
+    "country": "Japan"
+  },
+  {
+    "original": "9432.T",
+    "adr": "NTT",
+    "originalExchange": "TSE",
+    "adrExchange": "OTC",
+    "companyName": "Nippon Telegraph and Telephone Corporation",
+    "country": "Japan"
+  },
+  {
+    "original": "8306.T",
+    "adr": "MUFG",
+    "originalExchange": "TSE",
+    "adrExchange": "NYSE",
+    "companyName": "Mitsubishi UFJ Financial Group, Inc.",
+    "country": "Japan"
+  },
+  {
+    "original": "9988.HK",
+    "adr": "BABA",
+    "originalExchange": "HKEX",
+    "adrExchange": "NYSE",
+    "companyName": "Alibaba Group Holding Limited",
+    "country": "China"
+  },
+  {
+    "original": "9988",
+    "adr": "BABA",
+    "originalExchange": "HKEX",
+    "adrExchange": "NYSE",
+    "companyName": "Alibaba Group Holding Limited",
+    "country": "China",
+    "currency": "HKD"
+  },
+  {
+    "original": "0700.HK",
+    "adr": "TCEHY",
+    "originalExchange": "HKEX",
+    "adrExchange": "OTC",
+    "companyName": "Tencent Holdings Limited",
+    "country": "China"
+  },
+  {
+    "original": "0700",
+    "adr": "TCEHY",
+    "originalExchange": "HKEX",
+    "adrExchange": "OTC",
+    "companyName": "Tencent Holdings Limited",
+    "country": "China",
+    "currency": "HKD"
+  },
+  {
+    "original": "3690.HK",
+    "adr": "MPNGF",
+    "originalExchange": "HKEX",
+    "adrExchange": "OTC",
+    "companyName": "Meituan",
+    "country": "China"
+  },
+  {
+    "original": "3690",
+    "adr": "MPNGF",
+    "originalExchange": "HKEX",
+    "adrExchange": "OTC",
+    "companyName": "Meituan",
+    "country": "China",
+    "currency": "HKD"
+  },
+  {
+    "original": "1810.HK",
+    "adr": "XIACF",
+    "originalExchange": "HKEX",
+    "adrExchange": "OTC",
+    "companyName": "Xiaomi Corporation",
+    "country": "China"
+  },
+  {
+    "original": "1810",
+    "adr": "XIACF",
+    "originalExchange": "HKEX",
+    "adrExchange": "OTC",
+    "companyName": "Xiaomi Corporation",
+    "country": "China",
+    "currency": "HKD"
+  },
+  {
+    "original": "2318.HK",
+    "adr": "PNGAY",
+    "originalExchange": "HKEX",
+    "adrExchange": "OTC",
+    "companyName": "Ping An Insurance (Group) Company of China, Ltd.",
+    "country": "China"
+  },
+  {
+    "original": "2318",
+    "adr": "PNGAY",
+    "originalExchange": "HKEX",
+    "adrExchange": "OTC",
+    "companyName": "Ping An Insurance (Group) Company of China, Ltd.",
+    "country": "China",
+    "currency": "HKD"
+  },
+  {
+    "original": "0941.HK",
+    "adr": "CHL",
+    "originalExchange": "HKEX",
+    "adrExchange": "NYSE",
+    "companyName": "China Mobile Limited",
+    "country": "China"
+  },
+  {
+    "original": "0941",
+    "adr": "CHL",
+    "originalExchange": "HKEX",
+    "adrExchange": "NYSE",
+    "companyName": "China Mobile Limited",
+    "country": "China",
+    "currency": "HKD"
+  },
+  {
+    "original": "005930.KS",
+    "adr": "SSNLF",
+    "originalExchange": "KRX",
+    "adrExchange": "OTC",
+    "companyName": "Samsung Electronics Co., Ltd.",
+    "country": "South Korea"
+  },
+  {
+    "original": "005930",
+    "adr": "SSNLF",
+    "originalExchange": "KRX",
+    "adrExchange": "OTC",
+    "companyName": "Samsung Electronics Co., Ltd.",
+    "country": "South Korea",
+    "currency": "KRW"
+  },
+  {
+    "original": "000660.KS",
+    "adr": "SKHYF",
+    "originalExchange": "KRX",
+    "adrExchange": "OTC",
+    "companyName": "SK Hynix Inc.",
+    "country": "South Korea"
+  },
+  {
+    "original": "000660",
+    "adr": "SKHYF",
+    "originalExchange": "KRX",
+    "adrExchange": "OTC",
+    "companyName": "SK Hynix Inc.",
+    "country": "South Korea",
+    "currency": "KRW"
+  },
+  {
+    "original": "INFY.NS",
+    "adr": "INFY",
+    "originalExchange": "NSE",
+    "adrExchange": "NYSE",
+    "companyName": "Infosys Limited",
+    "country": "India"
+  },
+  {
+    "original": "INFY",
+    "adr": "INFY",
+    "originalExchange": "NSE",
+    "adrExchange": "NYSE",
+    "companyName": "Infosys Limited",
+    "country": "India",
+    "currency": "INR"
+  },
+  {
+    "original": "WIPRO.NS",
+    "adr": "WIT",
+    "originalExchange": "NSE",
+    "adrExchange": "NYSE",
+    "companyName": "Wipro Limited",
+    "country": "India"
+  },
+  {
+    "original": "WIPRO",
+    "adr": "WIT",
+    "originalExchange": "NSE",
+    "adrExchange": "NYSE",
+    "companyName": "Wipro Limited",
+    "country": "India",
+    "currency": "INR"
+  },
+  {
+    "original": "HDB.NS",
+    "adr": "HDB",
+    "originalExchange": "NSE",
+    "adrExchange": "NYSE",
+    "companyName": "HDFC Bank Limited",
+    "country": "India"
+  },
+  {
+    "original": "HDB",
+    "adr": "HDB",
+    "originalExchange": "NSE",
+    "adrExchange": "NYSE",
+    "companyName": "HDFC Bank Limited",
+    "country": "India",
+    "currency": "INR"
+  },
+  {
+    "original": "RY.TO",
+    "adr": "RY",
+    "originalExchange": "TSX",
+    "adrExchange": "NYSE",
+    "companyName": "Royal Bank of Canada",
+    "country": "Canada"
+  },
+  {
+    "original": "RY",
+    "adr": "RY",
+    "originalExchange": "TSX",
+    "adrExchange": "NYSE",
+    "companyName": "Royal Bank of Canada",
+    "country": "Canada",
+    "currency": "CAD"
+  },
+  {
+    "original": "TD.TO",
+    "adr": "TD",
+    "originalExchange": "TSX",
+    "adrExchange": "NYSE",
+    "companyName": "The Toronto-Dominion Bank",
+    "country": "Canada"
+  },
+  {
+    "original": "TD",
+    "adr": "TD",
+    "originalExchange": "TSX",
+    "adrExchange": "NYSE",
+    "companyName": "The Toronto-Dominion Bank",
+    "country": "Canada",
+    "currency": "CAD"
+  },
+  {
+    "original": "BNS.TO",
+    "adr": "BNS",
+    "originalExchange": "TSX",
+    "adrExchange": "NYSE",
+    "companyName": "The Bank of Nova Scotia",
+    "country": "Canada"
+  },
+  {
+    "original": "BNS",
+    "adr": "BNS",
+    "originalExchange": "TSX",
+    "adrExchange": "NYSE",
+    "companyName": "The Bank of Nova Scotia",
+    "country": "Canada",
+    "currency": "CAD"
+  },
+  {
+    "original": "BMO.TO",
+    "adr": "BMO",
+    "originalExchange": "TSX",
+    "adrExchange": "NYSE",
+    "companyName": "Bank of Montreal",
+    "country": "Canada"
+  },
+  {
+    "original": "BMO",
+    "adr": "BMO",
+    "originalExchange": "TSX",
+    "adrExchange": "NYSE",
+    "companyName": "Bank of Montreal",
+    "country": "Canada",
+    "currency": "CAD"
+  },
+  {
+    "original": "CNQ.TO",
+    "adr": "CNQ",
+    "originalExchange": "TSX",
+    "adrExchange": "NYSE",
+    "companyName": "Canadian Natural Resources Limited",
+    "country": "Canada"
+  },
+  {
+    "original": "CNQ",
+    "adr": "CNQ",
+    "originalExchange": "TSX",
+    "adrExchange": "NYSE",
+    "companyName": "Canadian Natural Resources Limited",
+    "country": "Canada",
+    "currency": "CAD"
+  },
+  {
+    "original": "SU.TO",
+    "adr": "SU",
+    "originalExchange": "TSX",
+    "adrExchange": "NYSE",
+    "companyName": "Suncor Energy Inc.",
+    "country": "Canada"
+  },
+  {
+    "original": "SU",
+    "adr": "SU",
+    "originalExchange": "TSX",
+    "adrExchange": "NYSE",
+    "companyName": "Suncor Energy Inc.",
+    "country": "Canada",
+    "currency": "CAD"
+  },
+  {
+    "original": "ENB.TO",
+    "adr": "ENB",
+    "originalExchange": "TSX",
+    "adrExchange": "NYSE",
+    "companyName": "Enbridge Inc.",
+    "country": "Canada"
+  },
+  {
+    "original": "ENB",
+    "adr": "ENB",
+    "originalExchange": "TSX",
+    "adrExchange": "NYSE",
+    "companyName": "Enbridge Inc.",
+    "country": "Canada",
+    "currency": "CAD"
+  },
+  {
+    "original": "TRP.TO",
+    "adr": "TRP",
+    "originalExchange": "TSX",
+    "adrExchange": "NYSE",
+    "companyName": "TC Energy Corporation",
+    "country": "Canada"
+  },
+  {
+    "original": "TRP",
+    "adr": "TRP",
+    "originalExchange": "TSX",
+    "adrExchange": "NYSE",
+    "companyName": "TC Energy Corporation",
+    "country": "Canada",
+    "currency": "CAD"
+  },
+  {
+    "original": "BCE.TO",
+    "adr": "BCE",
+    "originalExchange": "TSX",
+    "adrExchange": "NYSE",
+    "companyName": "BCE Inc.",
+    "country": "Canada"
+  },
+  {
+    "original": "BCE",
+    "adr": "BCE",
+    "originalExchange": "TSX",
+    "adrExchange": "NYSE",
+    "companyName": "BCE Inc.",
+    "country": "Canada",
+    "currency": "CAD"
+  },
+  {
+    "original": "T.TO",
+    "adr": "TU",
+    "originalExchange": "TSX",
+    "adrExchange": "NYSE",
+    "companyName": "TELUS Corporation",
+    "country": "Canada"
+  },
+  {
+    "original": "T",
+    "adr": "TU",
+    "originalExchange": "TSX",
+    "adrExchange": "NYSE",
+    "companyName": "TELUS Corporation",
+    "country": "Canada",
+    "currency": "CAD"
+  },
+  {
+    "original": "ABX.TO",
+    "adr": "ABX",
+    "originalExchange": "TSX",
+    "adrExchange": "NYSE",
+    "companyName": "Barrick Gold Corporation",
+    "country": "Canada"
+  },
+  {
+    "original": "ABX",
+    "adr": "ABX",
+    "originalExchange": "TSX",
+    "adrExchange": "NYSE",
+    "companyName": "Barrick Gold Corporation",
+    "country": "Canada",
+    "currency": "CAD"
+  },
+  {
+    "original": "NEM.TO",
+    "adr": "NEM",
+    "originalExchange": "TSX",
+    "adrExchange": "NYSE",
+    "companyName": "Newmont Corporation",
+    "country": "Canada"
+  },
+  {
+    "original": "NEM",
+    "adr": "NEM",
+    "originalExchange": "TSX",
+    "adrExchange": "NYSE",
+    "companyName": "Newmont Corporation",
+    "country": "Canada",
+    "currency": "CAD"
+  },
+  {
+    "original": "SHOP.TO",
+    "adr": "SHOP",
+    "originalExchange": "TSX",
+    "adrExchange": "NYSE",
+    "companyName": "Shopify Inc.",
+    "country": "Canada"
+  },
+  {
+    "original": "SHOP",
+    "adr": "SHOP",
+    "originalExchange": "TSX",
+    "adrExchange": "NYSE",
+    "companyName": "Shopify Inc.",
+    "country": "Canada",
+    "currency": "CAD"
+  },
+  {
+    "original": "CP.TO",
+    "adr": "CP",
+    "originalExchange": "TSX",
+    "adrExchange": "NYSE",
+    "companyName": "Canadian Pacific Kansas City Limited",
+    "country": "Canada"
+  },
+  {
+    "original": "CP",
+    "adr": "CP",
+    "originalExchange": "TSX",
+    "adrExchange": "NYSE",
+    "companyName": "Canadian Pacific Kansas City Limited",
+    "country": "Canada",
+    "currency": "CAD"
+  },
+  {
+    "original": "CNR.TO",
+    "adr": "CNI",
+    "originalExchange": "TSX",
+    "adrExchange": "NYSE",
+    "companyName": "Canadian National Railway Company",
+    "country": "Canada"
+  },
+  {
+    "original": "CNR",
+    "adr": "CNI",
+    "originalExchange": "TSX",
+    "adrExchange": "NYSE",
+    "companyName": "Canadian National Railway Company",
+    "country": "Canada",
+    "currency": "CAD"
+  },
+  {
+    "original": "WCN.TO",
+    "adr": "WCN",
+    "originalExchange": "TSX",
+    "adrExchange": "NYSE",
+    "companyName": "Waste Connections, Inc.",
+    "country": "Canada"
+  },
+  {
+    "original": "WCN",
+    "adr": "WCN",
+    "originalExchange": "TSX",
+    "adrExchange": "NYSE",
+    "companyName": "Waste Connections, Inc.",
+    "country": "Canada",
+    "currency": "CAD"
+  }
+]

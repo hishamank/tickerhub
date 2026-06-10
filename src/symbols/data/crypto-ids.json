@@ -1,0 +1,17 @@
+{
+  "BTC": "bitcoin",
+  "ETH": "ethereum",
+  "SOL": "solana",
+  "AVAX": "avalanche-2",
+  "ADA": "cardano",
+  "BNB": "binancecoin",
+  "XRP": "ripple",
+  "DOGE": "dogecoin",
+  "MATIC": "matic-network",
+  "DOT": "polkadot",
+  "LINK": "chainlink",
+  "UNI": "uniswap",
+  "ATOM": "cosmos",
+  "LTC": "litecoin",
+  "BCH": "bitcoin-cash"
+}
