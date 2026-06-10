@@ -96,6 +96,9 @@ Marketstack, Alpaca, Nasdaq Data Link, CoinGecko (crypto), Tradier (options).
 Selection is priority-ordered per data type with automatic fallback; see
 `DEFAULT_PROVIDER_PRIORITIES` and override per provider via the `ConfigStore`.
 
+Adding a provider is documented step-by-step in [GUIDE.md](./GUIDE.md). Keys for
+the built-in providers are listed in [`.env.example`](./.env.example).
+
 ## Resilience
 
 - **SWR cache** — fresh hits served instantly; stale entries served immediately
