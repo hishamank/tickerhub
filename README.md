@@ -135,10 +135,13 @@ await healthRepository.deleteOlderThan(new Date(Date.now() - 7 * 864e5));
 ## Development
 
 ```bash
-npm run check-types   # tsc --noEmit (strict)
-npm run lint          # eslint (no-explicit-any enforced)
-npm test              # vitest (186 tests)
-npm run build         # tsup → dist (ESM + CJS + d.ts)
+npm run check-types    # tsc --noEmit (strict)
+npm run lint           # eslint (no-explicit-any, max-lines enforced)
+npm test               # vitest
+npm run test:coverage  # vitest with coverage thresholds
+npm run build          # tsup → dist (ESM + CJS + d.ts)
+npm run docs:api       # typedoc → docs/api (generated, gitignored)
+npm run verify:package # pack + install + smoke test the tarball
 ```
 
 ## License
