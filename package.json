@@ -63,7 +63,8 @@
     "test": "vitest run --passWithNoTests",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
-    "prepublishOnly": "npm run check-types && npm run lint && npm run test && npm run build"
+    "prepublishOnly": "npm run check-types && npm run lint && npm run test && npm run build",
+    "verify:package": "bash scripts/verify-package.sh"
   },
   "dependencies": {
     "decimal.js": "^10.4.3",
