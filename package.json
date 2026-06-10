@@ -4,6 +4,29 @@
   "description": "Provider-agnostic market data aggregation with SWR caching, health monitoring, rate limiting, and pluggable credential/cache/storage adapters.",
   "type": "module",
   "license": "MIT",
+  "author": "Hicham Kazan",
+  "keywords": [
+    "market-data",
+    "stocks",
+    "crypto",
+    "finance",
+    "quotes",
+    "dividends",
+    "earnings",
+    "aggregator",
+    "swr",
+    "cache",
+    "rate-limiting",
+    "circuit-breaker"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hicham/market-data-aggregator.git"
+  },
+  "homepage": "https://github.com/hicham/market-data-aggregator#readme",
+  "bugs": {
+    "url": "https://github.com/hicham/market-data-aggregator/issues"
+  },
   "engines": {
     "node": ">=18"
   },
@@ -29,7 +52,8 @@
   },
   "files": [
     "dist",
-    "README.md"
+    "README.md",
+    "LICENSE"
   ],
   "sideEffects": false,
   "scripts": {
@@ -37,7 +61,9 @@
     "check-types": "tsc --noEmit",
     "lint": "eslint .",
     "test": "vitest run --passWithNoTests",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "prepublishOnly": "npm run check-types && npm run lint && npm run test && npm run build"
   },
   "dependencies": {
     "decimal.js": "^10.4.3",
