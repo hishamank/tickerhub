@@ -105,6 +105,15 @@ export class HealthMonitor {
   }
 
   /**
+   * Get the recent request window for a provider (oldest first).
+   * @param providerName - Name of the provider
+   * @returns Copy of the recent request results, or an empty array
+   */
+  getRecentRequests(providerName: string): RequestResult[] {
+    return [...(this.recentRequests.get(providerName) ?? [])];
+  }
+
+  /**
    * Update provider status
    * @param providerName - Name of the provider
    * @param status - New status

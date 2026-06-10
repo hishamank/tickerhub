@@ -20,36 +20,22 @@ export interface ProviderHealthMetrics {
   successRate: number;
 }
 
+/**
+ * Remaining rate-limit budget for a provider/credential pair. Values are
+ * `undefined` when no limit of that period is tracked (i.e. unlimited or unused).
+ */
 export interface ProviderRateLimitStatus {
   provider: string;
-  limit: {
-    perMinute?: number | undefined;
-    perHour?: number | undefined;
-    perDay?: number | undefined;
-  };
-  current: {
-    perMinute?: number | undefined;
-    perHour?: number | undefined;
-    perDay?: number | undefined;
-  };
   remaining: {
     perMinute?: number | undefined;
-    perHour?: number | undefined;
     perDay?: number | undefined;
-  };
-  resetAt: {
-    perMinute?: Date | undefined;
-    perHour?: Date | undefined;
-    perDay?: Date | undefined;
   };
 }
 
+/** A recent failed request for a provider. */
 export interface ProviderErrorInfo {
   timestamp: Date;
-  errorCode: string;
   errorMessage: string;
-  operation: string;
-  retryable: boolean;
 }
 
 export class HealthMetricsQuery {
@@ -113,28 +99,44 @@ export class HealthMetricsQuery {
   }
 
   /**
-   * Get rate limit status for a specific provider
-   * Note: Simplified implementation - QuotaTracker doesn't expose getStatus yet
+   * Get the remaining rate-limit budget for a provider. Pass the same
+   * credentials used for requests (budgets are tracked per credential set);
+   * omit for the shared/system bucket.
    */
   async getRateLimitStatus(
-    _providerName: string,
-  ): Promise<ProviderRateLimitStatus | null> {
-    // TODO: Implement using RateLimitTracker.getRemainingBudget once a public
-    // status projection is defined. For now, rate-limit details aren't exposed.
-    return null;
+    providerName: string,
+    credentials: Record<string, string> | null = null,
+  ): Promise<ProviderRateLimitStatus> {
+    const budget = this.rateLimitTracker.getRemainingBudget(
+      credentials,
+      providerName,
+    );
+    return {
+      provider: providerName,
+      remaining: {
+        perMinute: budget.minute >= 0 ? budget.minute : undefined,
+        perDay: budget.day >= 0 ? budget.day : undefined,
+      },
+    };
   }
 
   /**
-   * Get recent errors for a specific provider
-   * Note: This is a simplified version. In production, you'd query from audit logs.
+   * Get recent failed requests for a provider (newest first), drawn from the
+   * health monitor's in-memory request window.
    */
   async getRecentErrors(
-    _providerName: string,
-    _limit: number = 10,
+    providerName: string,
+    limit: number = 10,
   ): Promise<ProviderErrorInfo[]> {
-    // TODO: Implement audit-log querying when a persistent audit store is added.
-    // For now there is no persistent error history, so return an empty list.
-    return [];
+    return this.healthMonitor
+      .getRecentRequests(providerName)
+      .filter((r) => !r.success)
+      .slice(-limit)
+      .reverse()
+      .map((r) => ({
+        timestamp: r.timestamp,
+        errorMessage: r.error ?? "Unknown error",
+      }));
   }
 
   /**
