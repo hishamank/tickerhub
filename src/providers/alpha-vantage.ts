@@ -25,40 +25,13 @@ import {
   EarningsDataSchema,
   validateData,
 } from "../types/validation.js";
+import type {
+  AlphaVantageQuoteResponse,
+  AlphaVantageEarningsResponse,
+  AlphaVantageEarningsItem,
+} from "./alpha-vantage-types.js";
 
-const logger = getLogger(
-  "alpha-vantage",
-  "packages/provider-aggregator/src/providers/alpha-vantage.ts",
-);
-
-interface AlphaVantageGlobalQuote {
-  "05. price": string;
-  "02. open": string;
-  "03. high": string;
-  "04. low": string;
-  "08. previous close": string;
-  "09. change": string;
-  "10. change percent": string;
-  "06. volume": string;
-  "07. latest trading day": string;
-}
-
-interface AlphaVantageQuoteResponse {
-  "Global Quote"?: AlphaVantageGlobalQuote;
-}
-
-interface AlphaVantageEarningsItem {
-  reportedDate?: string;
-  fiscalDateEnding: string;
-  estimatedEPS: string;
-  reportedEPS: string;
-  surprise: string;
-  surprisePercentage: string;
-}
-
-interface AlphaVantageEarningsResponse {
-  quarterlyEarnings?: AlphaVantageEarningsItem[];
-}
+const logger = getLogger("alpha-vantage", "provider-aggregator/providers");
 
 export class AlphaVantageProvider extends BaseProvider {
   readonly name = "alpha-vantage";

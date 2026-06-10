@@ -25,11 +25,16 @@ import {
   EarningsDataSchema,
   validateData,
 } from "../types/validation.js";
+import {
+  type YahooHistoricalRow,
+  type YahooQuoteLike,
+  mapQuote,
+  mapDividends,
+  mapSplitEvents,
+  mapHistorical,
+} from "./yahoo-mappers.js";
 
-const logger = getLogger(
-  "yahoo-finance",
-  "packages/provider-aggregator/src/providers/yahoo-finance.ts",
-);
+const logger = getLogger("yahoo-finance", "provider-aggregator/providers");
 
 // yahoo-finance2 v3 ships dual CJS/ESM with an awkward default export: under
 // ESM the default is the class, but in a bundled-CJS consumer the interop
@@ -40,19 +45,6 @@ const ResolvedYahooFinance: YahooFinanceCtor =
   (YahooFinance as unknown as { default?: YahooFinanceCtor }).default ??
   YahooFinance;
 const yahooFinance = new ResolvedYahooFinance();
-
-/** A row from yahoo-finance2 `historical()` (fields vary by `events` option). */
-interface YahooHistoricalRow {
-  date: Date;
-  open: number;
-  high: number;
-  low: number;
-  close: number;
-  volume: number;
-  adjClose?: number;
-  dividends?: number;
-  split?: string;
-}
 
 export class YahooFinanceProvider extends BaseProvider {
   readonly name = "yahoo-finance";
@@ -98,50 +90,10 @@ export class YahooFinanceProvider extends BaseProvider {
         );
       }
 
-      // Transform Yahoo Finance response to our QuoteData format
-      const quoteData: QuoteData = {
-        symbol: normalizedSymbol,
-        price: quote.regularMarketPrice,
-        ...(quote.regularMarketOpen !== undefined && {
-          open: quote.regularMarketOpen,
-        }),
-        ...(quote.regularMarketDayHigh !== undefined && {
-          high: quote.regularMarketDayHigh,
-        }),
-        ...(quote.regularMarketDayLow !== undefined && {
-          low: quote.regularMarketDayLow,
-        }),
-        ...(quote.regularMarketPreviousClose !== undefined && {
-          close: quote.regularMarketPreviousClose,
-        }),
-        ...(quote.regularMarketPreviousClose !== undefined && {
-          previousClose: quote.regularMarketPreviousClose,
-        }),
-        ...(quote.regularMarketChange !== undefined && {
-          change: quote.regularMarketChange,
-        }),
-        ...(quote.regularMarketChangePercent !== undefined && {
-          changePercent: quote.regularMarketChangePercent,
-        }),
-        ...(quote.regularMarketVolume !== undefined && {
-          volume: quote.regularMarketVolume,
-        }),
-        timestamp: this.parseTimestamp(quote.regularMarketTime),
-        currency: quote.currency || "USD",
-        // Extended hours
-        ...(quote.preMarketPrice !== undefined && { preMarketPrice: quote.preMarketPrice }),
-        ...(quote.preMarketChange !== undefined && { preMarketChange: quote.preMarketChange }),
-        ...(quote.preMarketChangePercent !== undefined && { preMarketChangePercent: quote.preMarketChangePercent }),
-        ...(quote.postMarketPrice !== undefined && { postMarketPrice: quote.postMarketPrice }),
-        ...(quote.postMarketChange !== undefined && { postMarketChange: quote.postMarketChange }),
-        ...(quote.postMarketChangePercent !== undefined && { postMarketChangePercent: quote.postMarketChangePercent }),
-        ...(quote.marketState !== undefined && { marketState: quote.marketState }),
-      };
-
-      // Validate the response
       return validateData(
         QuoteDataSchema,
-        quoteData,
+        // The lib's Quote type is broader than the subset we map; narrow it.
+        mapQuote(quote as unknown as YahooQuoteLike, normalizedSymbol),
         `Yahoo Finance quote for ${symbol}`,
       );
     } catch (error) {
@@ -173,17 +125,7 @@ export class YahooFinanceProvider extends BaseProvider {
         return []; // No dividends found (not an error)
       }
 
-      // Transform Yahoo Finance dividend data
-      const dividends: DividendData[] = (result as YahooHistoricalRow[])
-        .filter((item) => item.dividends !== undefined)
-        .map((item) => ({
-          exDate: new Date(item.date),
-          amount: item.dividends!,
-          currency: "USD",
-        }));
-
-      // Validate each dividend
-      return dividends.map((div) =>
+      return mapDividends(result as YahooHistoricalRow[]).map((div) =>
         validateData(
           DividendDataSchema,
           div,
@@ -215,30 +157,13 @@ export class YahooFinanceProvider extends BaseProvider {
         return []; // No events found
       }
 
-      // Transform Yahoo Finance splits to EventData
-      const events: EventData[] = (result as unknown as YahooHistoricalRow[])
-        .filter((item) => item.split !== undefined)
-        .map((item) => {
-          const [numerator = 0, denominator = 1] = item.split!
-            .split(":")
-            .map((n: string) => parseFloat(n));
-          return {
-            type: numerator > denominator ? "split" : "reverse_split",
-            date: new Date(item.date),
-            description: `${item.split} stock split`,
-            details: {
-              ratio: item.split,
-            },
-          };
-        });
-
-      // Validate each event
-      return events.map((event) =>
-        validateData(
-          EventDataSchema,
-          event,
-          `Yahoo Finance event for ${symbol}`,
-        ),
+      return mapSplitEvents(result as unknown as YahooHistoricalRow[]).map(
+        (event) =>
+          validateData(
+            EventDataSchema,
+            event,
+            `Yahoo Finance event for ${symbol}`,
+          ),
       );
     } catch (error) {
       return this.handleHttpError(error, `fetchEvents(${symbol})`);
@@ -344,19 +269,7 @@ export class YahooFinanceProvider extends BaseProvider {
         return []; // No historical data found
       }
 
-      // Transform Yahoo Finance historical data to HistoricalPrice format
-      const prices: HistoricalPrice[] = (result as YahooHistoricalRow[]).map(
-        (item) => ({
-          date: item.date.toISOString().split("T")[0]!,
-          open: item.open,
-          high: item.high,
-          low: item.low,
-          close: item.close,
-          volume: item.volume,
-        }),
-      );
-
-      return prices;
+      return mapHistorical(result as YahooHistoricalRow[]);
     } catch (error) {
       return this.handleHttpError(error, `fetchHistoricalPrices(${symbol})`);
     }
@@ -374,20 +287,5 @@ export class YahooFinanceProvider extends BaseProvider {
       logger.error("[yahoo-finance] Health check failed:", error);
       return false;
     }
-  }
-
-  /**
-   * Parse Yahoo Finance timestamp (can be Date or epoch seconds)
-   */
-  private parseTimestamp(timestamp: Date | number | undefined): Date {
-    if (timestamp instanceof Date) {
-      return timestamp;
-    }
-    if (typeof timestamp === "number") {
-      // Yahoo returns epoch seconds
-      return new Date(timestamp * 1000);
-    }
-    // Fallback to current time
-    return new Date();
   }
 }

@@ -25,6 +25,18 @@ export default [
         { argsIgnorePattern: "^_", varsIgnorePattern: "^_" },
       ],
       "no-console": "error",
+      // Keep files focused; mirrors the source project's 300-line guideline.
+      "max-lines": [
+        "error",
+        { max: 300, skipBlankLines: true, skipComments: true },
+      ],
+    },
+  },
+  {
+    // Tests and JSON fixtures are exempt from the line cap.
+    files: ["src/**/*.test.ts", "src/**/__tests__/**"],
+    rules: {
+      "max-lines": "off",
     },
   },
 ];
