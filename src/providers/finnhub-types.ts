@@ -1,19 +1,6 @@
 /**
- * Finnhub API response shapes (the subset this provider consumes) plus a small
- * envelope-unwrapping helper.
+ * Finnhub API response shapes (the subset this provider consumes).
  */
-
-/**
- * Unwrap an axios-style `{ data }` envelope, falling back to the value itself.
- * The finnhub-ts client returns responses in either shape depending on version.
- */
-export function unwrapData<T>(response: unknown): T {
-  if (response && typeof response === "object" && "data" in response) {
-    const d = (response as { data: unknown }).data;
-    if (d !== undefined && d !== null) return d as T;
-  }
-  return response as T;
-}
 
 export interface FinnhubQuote {
   c: number;

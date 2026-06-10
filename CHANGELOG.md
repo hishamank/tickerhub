@@ -27,8 +27,14 @@ injected library.
 - **Health monitoring** with `flushHealthMetrics()` for durable time series.
 - **Optional backends** via subpath exports: `/sqlite` (better-sqlite3) and
   `/redis` (ioredis), lazily loaded so the core install is dependency-free.
-- Dual ESM + CJS build with type declarations; 251 tests; CI across Node
-  18/20/22.
+- Dual ESM + CJS build with type declarations; CI across Node 18/20/22.
+
+### Security
+
+- The Finnhub provider calls the REST API via native `fetch` instead of
+  `finnhub-ts`, which transitively pinned an EOL `axios@0.27` with unpatched
+  high-severity advisories. The package now has **zero** production dependency
+  vulnerabilities (`npm audit --omit=dev`).
 
 ### Notes
 

@@ -1,17 +1,17 @@
 /**
  * Finnhub Provider
  *
- * Implements the MarketDataProvider interface for Finnhub API.
- * Requires API key. Free tier: 60 calls/minute, paid tiers available.
+ * Implements the MarketDataProvider interface for the Finnhub REST API
+ * (https://finnhub.io/api/v1). Requires an API key. Free tier: 60 calls/min.
  *
- * Thin HTTP/orchestration layer: response shapes live in `finnhub-types.ts`
- * and pure transforms in `finnhub-mappers.ts`. Resilience (retry + circuit
- * breaking) is applied uniformly by the aggregator around every call.
+ * Uses native fetch (no SDK) so the package carries no axios dependency.
+ * Response shapes live in `finnhub-types.ts`, pure transforms in
+ * `finnhub-mappers.ts`. Resilience (circuit breaking) is applied uniformly by
+ * the aggregator around every call.
  */
 
 import { getLogger } from "../logging/index.js";
 import { ConfigurationError } from "../errors/index.js";
-import { DefaultApi, Configuration } from "finnhub-ts";
 import { BaseProvider } from "./base-provider.js";
 import type {
   QuoteData,
@@ -32,15 +32,14 @@ import {
   RatingDataSchema,
   validateData,
 } from "../types/validation.js";
-import {
-  unwrapData,
-  type FinnhubQuote,
-  type FinnhubDividend,
-  type FinnhubNews,
-  type FinnhubEarningsResponse,
-  type FinnhubRecommendation,
-  type FinnhubPriceTarget,
-  type FinnhubCandles,
+import type {
+  FinnhubQuote,
+  FinnhubDividend,
+  FinnhubNews,
+  FinnhubEarningsResponse,
+  FinnhubRecommendation,
+  FinnhubPriceTarget,
+  FinnhubCandles,
 } from "./finnhub-types.js";
 import {
   mapFinnhubError,
@@ -53,6 +52,7 @@ import {
 } from "./finnhub-mappers.js";
 
 const logger = getLogger("finnhub", "provider-aggregator/providers");
+const FINNHUB_BASE_URL = "https://finnhub.io/api/v1";
 
 /** Format a date as YYYY-MM-DD (Finnhub's expected query format). */
 function ymd(date: Date): string {
@@ -72,7 +72,7 @@ export class FinnhubProvider extends BaseProvider {
     requestsPerMinute: 60, // Free tier limit
   };
 
-  private client: DefaultApi;
+  private apiKey: string;
 
   constructor(credentials: Record<string, string> | null) {
     super();
@@ -80,15 +80,36 @@ export class FinnhubProvider extends BaseProvider {
     if (!apiKey) {
       throw new ConfigurationError("Finnhub API key is required");
     }
-    this.client = new DefaultApi(new Configuration({ apiKey }));
+    this.apiKey = apiKey;
+  }
+
+  /** GET a Finnhub endpoint and parse JSON. Throws on a non-2xx response. */
+  private async get<T>(
+    path: string,
+    params: Record<string, string | number>,
+  ): Promise<T> {
+    const qs = new URLSearchParams(
+      Object.entries(params).map(([k, v]): [string, string] => [k, String(v)]),
+    ).toString();
+    const response = await fetch(`${FINNHUB_BASE_URL}${path}?${qs}`, {
+      headers: { "X-Finnhub-Token": this.apiKey },
+    });
+    if (!response.ok) {
+      throw new ProviderError(
+        ProviderErrorCode.NETWORK_ERROR,
+        `Finnhub API returned ${response.status}`,
+        true,
+      );
+    }
+    return (await response.json()) as T;
   }
 
   async fetchQuote(symbol: string): Promise<QuoteData> {
     this.validateSymbol(symbol);
     const normalizedSymbol = symbol.toUpperCase();
-    const quote = unwrapData<FinnhubQuote>(
-      await this.client.quote(normalizedSymbol),
-    );
+    const quote = await this.get<FinnhubQuote>("/quote", {
+      symbol: normalizedSymbol,
+    });
     if (!quote || !quote.c) {
       throw new ProviderError(
         ProviderErrorCode.SYMBOL_NOT_FOUND,
@@ -110,15 +131,17 @@ export class FinnhubProvider extends BaseProvider {
   ): Promise<DividendData[]> {
     this.validateSymbol(symbol);
     try {
-      const normalizedSymbol = symbol.toUpperCase();
+      const symbolUpper = symbol.toUpperCase();
       const from = ymd(
         startDate ?? new Date(Date.now() - 365 * 24 * 60 * 60 * 1000),
       );
       const to = ymd(endDate ?? new Date());
 
-      const dividends = unwrapData<FinnhubDividend[]>(
-        await this.client.stockDividends(normalizedSymbol, from, to),
-      );
+      const dividends = await this.get<FinnhubDividend[]>("/stock/dividend", {
+        symbol: symbolUpper,
+        from,
+        to,
+      });
       if (!Array.isArray(dividends) || dividends.length === 0) return [];
 
       return mapDividends(dividends).map((div) =>
@@ -136,13 +159,15 @@ export class FinnhubProvider extends BaseProvider {
   async fetchEvents(symbol: string): Promise<EventData[]> {
     this.validateSymbol(symbol);
     try {
-      const normalizedSymbol = symbol.toUpperCase();
+      const symbolUpper = symbol.toUpperCase();
       const from = ymd(new Date(Date.now() - 365 * 24 * 60 * 60 * 1000));
       const to = ymd(new Date());
 
-      const news = unwrapData<FinnhubNews[]>(
-        await this.client.companyNews(normalizedSymbol, from, to),
-      );
+      const news = await this.get<FinnhubNews[]>("/company-news", {
+        symbol: symbolUpper,
+        from,
+        to,
+      });
       if (!Array.isArray(news) || news.length === 0) return [];
 
       return detectEvents(news).map((event) =>
@@ -153,28 +178,25 @@ export class FinnhubProvider extends BaseProvider {
     }
   }
 
-  /** Fetch earnings (historical + upcoming) via the earningsCalendar endpoint. */
+  /** Fetch earnings (historical + upcoming) via the earnings calendar. */
   async fetchEarnings(symbol: string): Promise<EarningsData[]> {
     this.validateSymbol(symbol);
     try {
-      const normalizedSymbol = symbol.toUpperCase();
+      const symbolUpper = symbol.toUpperCase();
       const now = new Date();
       const fromDate = new Date(now);
       fromDate.setMonth(fromDate.getMonth() - 6);
       const toDate = new Date(now);
       toDate.setMonth(toDate.getMonth() + 6);
 
-      const calendarData =
-        unwrapData<FinnhubEarningsResponse>(
-          await this.client.earningsCalendar(
-            ymd(fromDate),
-            ymd(toDate),
-            normalizedSymbol,
-          ),
-        ).earningsCalendar ?? [];
+      const data = await this.get<FinnhubEarningsResponse>(
+        "/calendar/earnings",
+        { from: ymd(fromDate), to: ymd(toDate), symbol: symbolUpper },
+      );
+      const calendarData = data.earningsCalendar ?? [];
 
       logger.debug("Finnhub earningsCalendar response", {
-        symbol: normalizedSymbol,
+        symbol: symbolUpper,
         count: calendarData.length,
       });
       if (calendarData.length === 0) return [];
@@ -194,9 +216,10 @@ export class FinnhubProvider extends BaseProvider {
   async fetchRatings(symbol: string): Promise<RatingData | null> {
     this.validateSymbol(symbol);
     try {
-      const normalizedSymbol = symbol.toUpperCase();
-      const recommendations = unwrapData<FinnhubRecommendation[]>(
-        await this.client.recommendationTrends(normalizedSymbol),
+      const symbolUpper = symbol.toUpperCase();
+      const recommendations = await this.get<FinnhubRecommendation[]>(
+        "/stock/recommendation",
+        { symbol: symbolUpper },
       );
       const latest = recommendations?.[0];
       if (!Array.isArray(recommendations) || !latest) {
@@ -207,8 +230,9 @@ export class FinnhubProvider extends BaseProvider {
         );
       }
 
-      const target = unwrapData<FinnhubPriceTarget>(
-        await this.client.priceTarget(normalizedSymbol),
+      const target = await this.get<FinnhubPriceTarget>(
+        "/stock/price-target",
+        { symbol: symbolUpper },
       );
       return validateData(
         RatingDataSchema,
@@ -227,13 +251,12 @@ export class FinnhubProvider extends BaseProvider {
   ): Promise<HistoricalPrice[]> {
     this.validateSymbol(symbol);
     try {
-      const normalizedSymbol = symbol.toUpperCase();
-      const from = Math.floor(startDate.getTime() / 1000);
-      const to = Math.floor(endDate.getTime() / 1000);
-
-      const candles = unwrapData<FinnhubCandles>(
-        await this.client.stockCandles(normalizedSymbol, "D", from, to),
-      );
+      const candles = await this.get<FinnhubCandles>("/stock/candle", {
+        symbol: symbol.toUpperCase(),
+        resolution: "D",
+        from: Math.floor(startDate.getTime() / 1000),
+        to: Math.floor(endDate.getTime() / 1000),
+      });
       if (candles.s !== "ok" || !candles.t || candles.t.length === 0) {
         return [];
       }
@@ -245,7 +268,7 @@ export class FinnhubProvider extends BaseProvider {
 
   override async healthCheck(): Promise<boolean> {
     try {
-      await this.client.quote("AAPL");
+      await this.get<FinnhubQuote>("/quote", { symbol: "AAPL" });
       return true;
     } catch (error) {
       logger.error("[finnhub] Health check failed:", error);
