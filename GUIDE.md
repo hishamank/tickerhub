@@ -1,6 +1,6 @@
 # How to add a market data provider
 
-This guide covers adding a new provider to `market-data-aggregator`. The system
+This guide covers adding a new provider to `tickerhub`. The system
 selects providers per data type in priority order with automatic fallback, so a
 new provider slots in once it's registered.
 

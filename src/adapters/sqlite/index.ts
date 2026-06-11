@@ -1,5 +1,5 @@
 /**
- * SQLite adapters subpath entry (`market-data-aggregator/sqlite`).
+ * SQLite adapters subpath entry (`tickerhub/sqlite`).
  *
  * Optional SQLite-backed implementations of the ConfigStore and
  * HealthMetricsStore ports. `better-sqlite3` is an optional peer dependency,

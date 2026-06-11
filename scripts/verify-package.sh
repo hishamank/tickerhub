@@ -28,7 +28,7 @@ npm install "$TARBALL" better-sqlite3 >/dev/null 2>&1
 
 echo "▸ CJS require…"
 node -e '
-const { createAggregator, NoopLogger } = require("market-data-aggregator");
+const { createAggregator, NoopLogger } = require("tickerhub");
 const { service } = createAggregator({ logger: new NoopLogger() });
 service.getRegisteredProviders().then((p) => {
   if (p.length < 12) { console.error("expected >= 12 providers"); process.exit(1); }
@@ -38,9 +38,9 @@ service.getRegisteredProviders().then((p) => {
 
 echo "▸ ESM import + subpaths…"
 cat > verify.mjs <<'EOF'
-import { createAggregator, InMemoryCache, NoopLogger } from "market-data-aggregator";
-import { openSqliteStores } from "market-data-aggregator/sqlite";
-import { RedisCache } from "market-data-aggregator/redis";
+import { createAggregator, InMemoryCache, NoopLogger } from "tickerhub";
+import { openSqliteStores } from "tickerhub/sqlite";
+import { RedisCache } from "tickerhub/redis";
 
 const { configStore, healthStore, db } = await openSqliteStores(":memory:");
 const { service } = createAggregator({

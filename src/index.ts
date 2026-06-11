@@ -1,5 +1,5 @@
 /**
- * market-data-aggregator
+ * tickerhub
  *
  * Provider-agnostic market data aggregation with SWR caching, health
  * monitoring, rate limiting, and pluggable credential / cache / storage
@@ -7,7 +7,7 @@
  *
  * Quick start:
  * ```ts
- * import { createAggregator } from "market-data-aggregator";
+ * import { createAggregator } from "tickerhub";
  * const { service } = createAggregator(); // zero-config: in-memory + env keys
  * const quote = await service.getQuote("AAPL");
  * ```

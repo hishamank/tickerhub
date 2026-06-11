@@ -1,5 +1,5 @@
 /**
- * Redis cache adapter subpath entry (`market-data-aggregator/redis`).
+ * Redis cache adapter subpath entry (`tickerhub/redis`).
  *
  * Implements the Cache port over a Redis client. To avoid a hard dependency on
  * any specific client's types, it accepts a minimal `RedisLike` interface — an

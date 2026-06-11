@@ -1,4 +1,4 @@
-# market-data-aggregator
+# tickerhub
 
 Provider-agnostic market data aggregation with stale-while-revalidate caching,
 health monitoring, rate limiting, and a uniform circuit breaker — built on a
@@ -12,7 +12,7 @@ strict TypeScript, no `any`, dual ESM/CJS build.
 ## Install
 
 ```bash
-npm install market-data-aggregator
+npm install tickerhub
 # optional backends (peer dependencies):
 npm install better-sqlite3   # for the SQLite stores
 npm install ioredis          # for the Redis cache
@@ -21,7 +21,7 @@ npm install ioredis          # for the Redis cache
 ## Quick start
 
 ```ts
-import { createAggregator } from "market-data-aggregator";
+import { createAggregator } from "tickerhub";
 
 // Zero-config: in-memory cache, env credentials, in-memory stores, console logs.
 const { service } = createAggregator();
@@ -57,9 +57,9 @@ interfaces. Every external concern is a **port** with a zero-config default
 | `HealthMetricsStore` | `InMemoryHealthStore` | `SqliteHealthStore` (`/sqlite`) |
 
 ```ts
-import { createAggregator, ConfigCredentialProvider } from "market-data-aggregator";
-import { RedisCache } from "market-data-aggregator/redis";
-import { openSqliteStores } from "market-data-aggregator/sqlite";
+import { createAggregator, ConfigCredentialProvider } from "tickerhub";
+import { RedisCache } from "tickerhub/redis";
+import { openSqliteStores } from "tickerhub/sqlite";
 import Redis from "ioredis";
 
 const { configStore, healthStore } = await openSqliteStores("./market-data.db");

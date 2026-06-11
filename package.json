@@ -1,5 +1,5 @@
 {
-  "name": "market-data-aggregator",
+  "name": "tickerhub",
   "version": "0.1.0",
   "description": "Provider-agnostic market data aggregation with SWR caching, health monitoring, rate limiting, and pluggable credential/cache/storage adapters.",
   "type": "module",
@@ -21,11 +21,11 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/hicham/market-data-aggregator.git"
+    "url": "git+https://github.com/hicham/tickerhub.git"
   },
-  "homepage": "https://github.com/hicham/market-data-aggregator#readme",
+  "homepage": "https://github.com/hicham/tickerhub#readme",
   "bugs": {
-    "url": "https://github.com/hicham/market-data-aggregator/issues"
+    "url": "https://github.com/hicham/tickerhub/issues"
   },
   "engines": {
     "node": ">=18"

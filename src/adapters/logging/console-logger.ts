@@ -9,7 +9,7 @@ import type { Logger } from "../../ports/logger.js";
 
 /* eslint-disable no-console -- this adapter is the one place console use is intentional */
 export class ConsoleLogger implements Logger {
-  constructor(private readonly name: string = "market-data-aggregator") {}
+  constructor(private readonly name: string = "tickerhub") {}
 
   private format(level: string, message: string): string {
     return `[${level}] [${this.name}] ${message}`;
