@@ -21,11 +21,11 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/hicham/tickerhub.git"
+    "url": "git+https://github.com/hishamank/tickerhub.git"
   },
-  "homepage": "https://github.com/hicham/tickerhub#readme",
+  "homepage": "https://github.com/hishamank/tickerhub#readme",
   "bugs": {
-    "url": "https://github.com/hicham/tickerhub/issues"
+    "url": "https://github.com/hishamank/tickerhub/issues"
   },
   "engines": {
     "node": ">=18"
