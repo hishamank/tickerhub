@@ -16,6 +16,9 @@ import type {
   DividendData,
   EarningsData,
   EventData,
+  TechnicalIndicator,
+  ForexRate,
+  HistoricalPrice,
   DataType,
   RateLimitConfig,
 } from "../types/index.js";
@@ -30,19 +33,59 @@ import type {
   AlphaVantageEarningsResponse,
   AlphaVantageEarningsItem,
 } from "./alpha-vantage-types.js";
+import {
+  avTechnicalIndicator,
+  avForexRate,
+  avForexHistorical,
+  type AvGet,
+} from "./alpha-vantage-extra.js";
 
 const logger = getLogger("alpha-vantage", "provider-aggregator/providers");
 
 export class AlphaVantageProvider extends BaseProvider {
   readonly name = "alpha-vantage";
-  readonly supportedDataTypes: DataType[] = ["prices", "dividends", "earnings"];
+  readonly supportedDataTypes: DataType[] = [
+    "prices",
+    "dividends",
+    "earnings",
+    "technicals",
+    "forex_rate",
+    "forex_historical",
+  ];
   readonly rateLimit: RateLimitConfig = {
     requestsPerMinute: 5, // Free tier limit
-    requestsPerDay: 500,
+    requestsPerDay: 25,
   };
 
   private apiKey: string;
   private baseUrl = "https://www.alphavantage.co/query";
+
+  /** Bound, generic JSON getter handed to the extended-capability helpers. */
+  private readonly getter: AvGet = async <T,>(
+    params: Record<string, string>,
+  ): Promise<T> => {
+    const qs = new URLSearchParams({
+      ...params,
+      apikey: this.apiKey,
+    }).toString();
+    const response = await fetch(`${this.baseUrl}?${qs}`);
+    if (!response.ok) {
+      if (response.status === 429) {
+        throw new ProviderError(
+          ProviderErrorCode.RATE_LIMIT_EXCEEDED,
+          "Alpha Vantage rate limit exceeded",
+          true,
+          60,
+        );
+      }
+      throw new ProviderError(
+        ProviderErrorCode.NETWORK_ERROR,
+        `Alpha Vantage API returned ${response.status}`,
+        true,
+      );
+    }
+    return (await response.json()) as T;
+  };
 
   constructor(credentials: Record<string, string> | null) {
     super();
@@ -281,6 +324,28 @@ export class AlphaVantageProvider extends BaseProvider {
     } catch (error) {
       return this.handleHttpError(error, `fetchEvents(${symbol})`);
     }
+  }
+
+  fetchTechnicalIndicator(
+    symbol: string,
+    indicator: string,
+    interval?: string,
+  ): Promise<TechnicalIndicator | null> {
+    this.validateSymbol(symbol);
+    return avTechnicalIndicator(this.getter, symbol, indicator, interval);
+  }
+
+  fetchForexRate(from: string, to: string): Promise<ForexRate | null> {
+    return avForexRate(this.getter, from, to);
+  }
+
+  fetchForexHistorical(
+    from: string,
+    to: string,
+    start: Date,
+    end: Date,
+  ): Promise<HistoricalPrice[]> {
+    return avForexHistorical(this.getter, from, to, start, end);
   }
 
   /**

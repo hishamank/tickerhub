@@ -12,7 +12,9 @@ export interface ProviderConfigRecord {
   providerType: string;
   requiresKey: boolean;
   rateLimitPerMinute: number | null;
+  rateLimitPerHour: number | null;
   rateLimitPerDay: number | null;
+  rateLimitPerMonth: number | null;
   reliabilityScore: number;
   enabled: boolean;
   paidTier: boolean;

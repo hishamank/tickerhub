@@ -15,7 +15,19 @@ export type DataType =
   | "events"
   | "ratings"
   | "options"
-  | "macro";
+  | "macro"
+  | "profile"
+  | "news"
+  | "ipo"
+  | "search"
+  | "insider"
+  | "technicals"
+  | "movers"
+  | "crypto_quote"
+  | "crypto_historical"
+  | "crypto_markets"
+  | "forex_rate"
+  | "forex_historical";
 
 /**
  * Provider error codes for standardized error handling
@@ -140,6 +152,70 @@ export interface MarketDataProvider {
   ): Promise<OptionChain | null>;
 
   /**
+   * Fetch company profile / fundamentals snapshot (optional)
+   */
+  fetchProfile?(symbol: string): Promise<CompanyProfile | null>;
+
+  /**
+   * Fetch recent company news (optional)
+   */
+  fetchNews?(symbol: string): Promise<NewsArticle[]>;
+
+  /**
+   * Fetch the IPO calendar (optional). `symbol` is ignored by most providers.
+   */
+  fetchIpoCalendar?(symbol?: string): Promise<IpoEvent[]>;
+
+  /**
+   * Search for matching symbols (optional). `query` may be a ticker or name.
+   */
+  searchSymbols?(query: string): Promise<SymbolSearchResult[]>;
+
+  /**
+   * Fetch insider transactions (optional)
+   */
+  fetchInsiderTransactions?(symbol: string): Promise<InsiderTransaction[]>;
+
+  /**
+   * Fetch a technical-indicator series (optional)
+   */
+  fetchTechnicalIndicator?(
+    symbol: string,
+    indicator: string,
+    interval?: string,
+  ): Promise<TechnicalIndicator | null>;
+
+  /**
+   * Fetch market movers — gainers/losers/most-active (optional)
+   */
+  fetchMarketMovers?(
+    direction: "gainers" | "losers" | "actives",
+  ): Promise<MarketMover[]>;
+
+  // ── Crypto namespace ───────────────────────────────────────────────
+  /** Fetch a crypto quote (optional) */
+  fetchCryptoQuote?(symbol: string): Promise<QuoteData | null>;
+  /** Fetch crypto historical prices (optional) */
+  fetchCryptoHistorical?(
+    symbol: string,
+    from: Date,
+    to: Date,
+  ): Promise<HistoricalPrice[]>;
+  /** Fetch ranked crypto markets (optional) */
+  fetchCryptoMarkets?(limit?: number): Promise<CryptoMarket[]>;
+
+  // ── Forex namespace ────────────────────────────────────────────────
+  /** Fetch a forex rate (optional) */
+  fetchForexRate?(from: string, to: string): Promise<ForexRate | null>;
+  /** Fetch forex historical prices (optional) */
+  fetchForexHistorical?(
+    from: string,
+    to: string,
+    start: Date,
+    end: Date,
+  ): Promise<HistoricalPrice[]>;
+
+  /**
    * Health check (optional, defaults to simple ping)
    */
   healthCheck?(): Promise<boolean>;
@@ -206,6 +282,15 @@ import type {
   RatingData,
   HistoricalPrice,
   OptionChain,
+  CompanyProfile,
+  NewsArticle,
+  IpoEvent,
+  SymbolSearchResult,
+  InsiderTransaction,
+  TechnicalIndicator,
+  MarketMover,
+  CryptoMarket,
+  ForexRate,
 } from "./data.js";
 
 import type { MacroIndicatorData } from "./macro.js";

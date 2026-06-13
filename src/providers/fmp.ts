@@ -18,15 +18,32 @@ import type {
   EarningsData,
   RatingData,
   HistoricalPrice,
+  CompanyProfile,
+  NewsArticle,
+  IpoEvent,
+  SymbolSearchResult,
+  InsiderTransaction,
+  MarketMover,
+  ForexRate,
   DataType,
   RateLimitConfig,
 } from "../types/index.js";
+import {
+  fmpNews,
+  fmpIpoCalendar,
+  fmpSearch,
+  fmpInsider,
+  fmpMovers,
+  fmpForexRate,
+  type FmpGet,
+} from "./fmp-extra.js";
 import { ProviderError, ProviderErrorCode } from "../types/provider.js";
 import {
   QuoteDataSchema,
   DividendDataSchema,
   EarningsDataSchema,
   RatingDataSchema,
+  CompanyProfileSchema,
   validateData,
 } from "../types/validation.js";
 import type {
@@ -35,6 +52,7 @@ import type {
   FMPEarningsItem,
   FMPRating,
   FMPHistoricalResponse,
+  FMPProfile,
 } from "./fmp-types.js";
 import {
   fmpForbiddenOrThrow,
@@ -43,6 +61,7 @@ import {
   mapEarnings,
   mapHistorical,
   mapRatingToConsensus,
+  mapFmpProfile,
 } from "./fmp-mappers.js";
 
 const logger = getLogger("fmp", "provider-aggregator/providers");
@@ -55,6 +74,13 @@ export class FMPProvider extends BaseProvider {
     "earnings",
     "events",
     "ratings",
+    "profile",
+    "news",
+    "ipo",
+    "search",
+    "insider",
+    "movers",
+    "forex_rate",
   ];
   readonly rateLimit: RateLimitConfig = {
     requestsPerDay: 250, // Free tier limit
@@ -62,6 +88,13 @@ export class FMPProvider extends BaseProvider {
 
   private apiKey: string;
   private baseUrl = "https://financialmodelingprep.com/api/v3";
+  private host = "https://financialmodelingprep.com";
+
+  /** Bound fetcher for the extended-capability helpers (appends the API key). */
+  private readonly getter: FmpGet = (apiPath) =>
+    fetch(
+      `${this.host}${apiPath}${apiPath.includes("?") ? "&" : "?"}apikey=${this.apiKey}`,
+    );
 
   constructor(credentials: Record<string, string> | null) {
     super();
@@ -208,6 +241,57 @@ export class FMPProvider extends BaseProvider {
     } catch (error) {
       return this.handleHttpError(error, `fetchHistoricalPrices(${symbol})`);
     }
+  }
+
+  async fetchProfile(symbol: string): Promise<CompanyProfile | null> {
+    this.validateSymbol(symbol);
+    try {
+      const normalizedSymbol = symbol.toUpperCase();
+      const response = await fetch(
+        `${this.baseUrl}/profile/${normalizedSymbol}?apikey=${this.apiKey}`,
+      );
+      if (fmpForbiddenOrThrow(response, "profile", symbol)) return null;
+
+      const data = (await response.json()) as FMPProfile[];
+      const profile = Array.isArray(data) ? data[0] : undefined;
+      if (!profile) return null;
+
+      return validateData(
+        CompanyProfileSchema,
+        mapFmpProfile(profile, normalizedSymbol),
+        `FMP profile for ${symbol}`,
+      );
+    } catch (error) {
+      return this.handleHttpError(error, `fetchProfile(${symbol})`);
+    }
+  }
+
+  fetchNews(symbol: string): Promise<NewsArticle[]> {
+    this.validateSymbol(symbol);
+    return fmpNews(this.getter, symbol);
+  }
+
+  fetchIpoCalendar(): Promise<IpoEvent[]> {
+    return fmpIpoCalendar(this.getter);
+  }
+
+  searchSymbols(query: string): Promise<SymbolSearchResult[]> {
+    return fmpSearch(this.getter, query);
+  }
+
+  fetchInsiderTransactions(symbol: string): Promise<InsiderTransaction[]> {
+    this.validateSymbol(symbol);
+    return fmpInsider(this.getter, symbol);
+  }
+
+  fetchMarketMovers(
+    direction: "gainers" | "losers" | "actives",
+  ): Promise<MarketMover[]> {
+    return fmpMovers(this.getter, direction);
+  }
+
+  fetchForexRate(from: string, to: string): Promise<ForexRate | null> {
+    return fmpForexRate(this.getter, from, to);
   }
 
   override async healthCheck(): Promise<boolean> {

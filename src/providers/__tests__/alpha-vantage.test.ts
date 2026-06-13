@@ -22,7 +22,9 @@ describe("AlphaVantageProvider", () => {
   it("exposes correct metadata", () => {
     const p = new AlphaVantageProvider(creds);
     expect(p.name).toBe("alpha-vantage");
-    expect(p.supportedDataTypes).toEqual(["prices", "dividends", "earnings"]);
+    expect(p.supportedDataTypes).toContain("prices");
+    expect(p.supportedDataTypes).toContain("technicals");
+    expect(p.supportedDataTypes).toContain("forex_rate");
   });
 
   it("fetches and maps a Global Quote", async () => {
@@ -83,5 +85,79 @@ describe("AlphaVantageProvider", () => {
     expect(earnings).toHaveLength(1);
     expect(earnings[0]?.fiscalYear).toBe(2024);
     expect(earnings[0]?.actual).toBe(1.55);
+  });
+
+  it("maps a technical indicator series", async () => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        "Meta Data": { "1: Symbol": "AAPL" },
+        "Technical Analysis: SMA": {
+          "2024-01-02": { SMA: "150.0" },
+          "2024-01-01": { SMA: "149.0" },
+        },
+      }),
+    } as Response);
+    const ti = await new AlphaVantageProvider(creds).fetchTechnicalIndicator!(
+      "AAPL",
+      "SMA",
+    );
+    expect(ti?.indicator).toBe("sma");
+    expect(ti?.values).toHaveLength(2);
+    expect(ti?.values[0]?.value).toBe(150);
+  });
+
+  it("maps a forex exchange rate", async () => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        "Realtime Currency Exchange Rate": {
+          "5. Exchange Rate": "1.0850",
+          "6. Last Refreshed": "2024-01-02 12:00:00",
+          "8. Bid Price": "1.0849",
+          "9. Ask Price": "1.0851",
+        },
+      }),
+    } as Response);
+    const rate = await new AlphaVantageProvider(creds).fetchForexRate!(
+      "EUR",
+      "USD",
+    );
+    expect(rate?.rate).toBeCloseTo(1.085);
+    expect(rate?.from).toBe("EUR");
+  });
+
+  it("maps forex historical prices within the range", async () => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        "Time Series FX (Daily)": {
+          "2024-01-02": {
+            "1. open": "1.080",
+            "2. high": "1.090",
+            "3. low": "1.070",
+            "4. close": "1.085",
+          },
+          "2023-12-01": {
+            "1. open": "1.000",
+            "2. high": "1.010",
+            "3. low": "0.990",
+            "4. close": "1.005",
+          },
+        },
+      }),
+    } as Response);
+    const hist = await new AlphaVantageProvider(creds).fetchForexHistorical!(
+      "EUR",
+      "USD",
+      new Date("2024-01-01"),
+      new Date("2024-01-03"),
+    );
+    expect(hist).toHaveLength(1); // 2023-12-01 is filtered out of range
+    expect(hist[0]?.date).toBe("2024-01-02");
+    expect(hist[0]?.close).toBeCloseTo(1.085);
   });
 });

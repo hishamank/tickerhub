@@ -189,3 +189,125 @@ export interface OptionChain {
   expirationDate: Date;
   options: OptionContract[];
 }
+
+/**
+ * News article (company or market news).
+ */
+export interface NewsArticle {
+  headline: string;
+  url: string;
+  publishedAt: Date;
+  summary?: string | undefined;
+  source?: string | undefined;
+  imageUrl?: string | undefined;
+  symbols?: string[] | undefined;
+}
+
+/**
+ * IPO calendar entry.
+ */
+export interface IpoEvent {
+  date: string; // ISO date YYYY-MM-DD
+  symbol?: string | undefined;
+  name?: string | undefined;
+  exchange?: string | undefined;
+  priceRangeLow?: number | undefined;
+  priceRangeHigh?: number | undefined;
+  shares?: number | undefined;
+  status?: string | undefined;
+}
+
+/**
+ * Symbol search / lookup result.
+ */
+export interface SymbolSearchResult {
+  symbol: string;
+  name?: string | undefined;
+  exchange?: string | undefined;
+  type?: string | undefined;
+  currency?: string | undefined;
+}
+
+/**
+ * Insider transaction (Form 3/4-style filing).
+ */
+export interface InsiderTransaction {
+  symbol: string;
+  name?: string | undefined;
+  transactionDate?: string | undefined; // ISO date
+  shares?: number | undefined;
+  change?: number | undefined;
+  price?: number | undefined;
+  transactionType?: string | undefined;
+}
+
+/**
+ * A single technical-indicator series for a symbol.
+ */
+export interface TechnicalIndicator {
+  symbol: string;
+  indicator: string; // e.g. "sma", "rsi"
+  interval?: string | undefined; // e.g. "daily"
+  values: Array<{ date: string; value: number }>;
+}
+
+/**
+ * A market mover (gainer / loser / most-active).
+ */
+export interface MarketMover {
+  symbol: string;
+  name?: string | undefined;
+  price?: number | undefined;
+  change?: number | undefined;
+  changePercent?: number | undefined;
+}
+
+/**
+ * Ranked crypto market entry.
+ */
+export interface CryptoMarket {
+  symbol: string;
+  name?: string | undefined;
+  price: number;
+  marketCap?: number | undefined;
+  volume24h?: number | undefined;
+  change24h?: number | undefined;
+  rank?: number | undefined;
+}
+
+/**
+ * A foreign-exchange rate between two currencies.
+ */
+export interface ForexRate {
+  from: string;
+  to: string;
+  rate: number;
+  timestamp: Date;
+  bid?: number | undefined;
+  ask?: number | undefined;
+}
+
+/**
+ * Company profile / fundamentals snapshot.
+ * Note: Optional properties use `| undefined` for exactOptionalPropertyTypes compatibility
+ */
+export interface CompanyProfile {
+  symbol: string;
+  name?: string | undefined;
+  description?: string | undefined;
+  exchange?: string | undefined;
+  currency?: string | undefined;
+  country?: string | undefined;
+  sector?: string | undefined;
+  industry?: string | undefined;
+  website?: string | undefined;
+  logo?: string | undefined;
+  marketCap?: number | undefined;
+  sharesOutstanding?: number | undefined;
+  employees?: number | undefined;
+  /** IPO / listing date as an ISO date string (YYYY-MM-DD). */
+  ipoDate?: string | undefined;
+  ceo?: string | undefined;
+  phone?: string | undefined;
+  address?: string | undefined;
+}

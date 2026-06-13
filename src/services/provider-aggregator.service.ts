@@ -8,6 +8,8 @@
 
 import type { SwrCache } from "../cache/swr-cache.js";
 import type { SmartAggregator } from "../aggregator/smart-aggregator.js";
+import { CryptoService } from "./crypto.service.js";
+import { ForexService } from "./forex.service.js";
 import type {
   QuoteData,
   DividendData,
@@ -16,15 +18,30 @@ import type {
   EventData,
   HistoricalPrice,
   OptionChain,
+  CompanyProfile,
+  NewsArticle,
+  IpoEvent,
+  SymbolSearchResult,
+  InsiderTransaction,
+  TechnicalIndicator,
+  MarketMover,
   MacroIndicatorData,
   MarketDataResponse,
 } from "../types/index.js";
 
 export class ProviderAggregatorService {
+  /** Crypto asset-class namespace (`service.crypto.*`). */
+  readonly crypto: CryptoService;
+  /** Forex asset-class namespace (`service.forex.*`). */
+  readonly forex: ForexService;
+
   constructor(
     private readonly aggregator: SmartAggregator,
     private readonly cache: SwrCache,
-  ) {}
+  ) {
+    this.crypto = new CryptoService(aggregator.crypto, cache);
+    this.forex = new ForexService(aggregator.forex, cache);
+  }
 
   /** Get quote for a symbol (SWR-cached). */
   async getQuote(
@@ -155,6 +172,20 @@ export class ProviderAggregatorService {
     );
   }
 
+  /** Get company profile / fundamentals (SWR-cached). */
+  async getCompanyProfile(
+    symbol: string,
+    userId: string = "system",
+    options?: { forceRefresh?: boolean },
+  ): Promise<MarketDataResponse<CompanyProfile | null>> {
+    return this.cache.get(
+      "getCompanyProfile",
+      [symbol.toUpperCase()],
+      () => this.aggregator.fetchProfile(symbol, userId),
+      options,
+    );
+  }
+
   /** Get option chain for an underlying and expiration date (SWR-cached). */
   async getOptionChain(
     symbol: string,
@@ -166,6 +197,97 @@ export class ProviderAggregatorService {
       "getOptionChain",
       [symbol.toUpperCase(), expirationDate.toISOString().split("T")[0]],
       () => this.aggregator.fetchOptionChain(symbol, userId, expirationDate),
+      options,
+    );
+  }
+
+  /** Get recent company news (SWR-cached). */
+  async getNews(
+    symbol: string,
+    userId: string = "system",
+    options?: { forceRefresh?: boolean },
+  ): Promise<MarketDataResponse<NewsArticle[]>> {
+    return this.cache.get(
+      "getNews",
+      [symbol.toUpperCase()],
+      () => this.aggregator.fetchNews(symbol, userId),
+      options,
+    );
+  }
+
+  /** Get the IPO calendar (SWR-cached). */
+  async getIpoCalendar(
+    userId: string = "system",
+    options?: { forceRefresh?: boolean },
+  ): Promise<MarketDataResponse<IpoEvent[]>> {
+    return this.cache.get(
+      "getIpoCalendar",
+      ["ALL"],
+      () => this.aggregator.fetchIpoCalendar(userId),
+      options,
+    );
+  }
+
+  /** Search for matching symbols (SWR-cached). */
+  async searchSymbols(
+    query: string,
+    userId: string = "system",
+    options?: { forceRefresh?: boolean },
+  ): Promise<MarketDataResponse<SymbolSearchResult[]>> {
+    return this.cache.get(
+      "searchSymbols",
+      [query.toLowerCase()],
+      () => this.aggregator.searchSymbols(query, userId),
+      options,
+    );
+  }
+
+  /** Get insider transactions for a symbol (SWR-cached). */
+  async getInsiderTransactions(
+    symbol: string,
+    userId: string = "system",
+    options?: { forceRefresh?: boolean },
+  ): Promise<MarketDataResponse<InsiderTransaction[]>> {
+    return this.cache.get(
+      "getInsiderTransactions",
+      [symbol.toUpperCase()],
+      () => this.aggregator.fetchInsiderTransactions(symbol, userId),
+      options,
+    );
+  }
+
+  /** Get a technical-indicator series for a symbol (SWR-cached). */
+  async getTechnicalIndicator(
+    symbol: string,
+    indicator: string,
+    userId: string = "system",
+    options?: { interval?: string; forceRefresh?: boolean },
+  ): Promise<MarketDataResponse<TechnicalIndicator | null>> {
+    const interval = options?.interval ?? "daily";
+    return this.cache.get(
+      "getTechnicalIndicator",
+      [symbol.toUpperCase(), indicator.toLowerCase(), interval],
+      () =>
+        this.aggregator.fetchTechnicalIndicator(
+          symbol,
+          indicator,
+          userId,
+          interval,
+        ),
+      options,
+    );
+  }
+
+  /** Get market movers — gainers/losers/most-active (SWR-cached). */
+  async getMarketMovers(
+    direction: "gainers" | "losers" | "actives",
+    userId: string = "system",
+    options?: { forceRefresh?: boolean },
+  ): Promise<MarketDataResponse<MarketMover[]>> {
+    return this.cache.get(
+      "getMarketMovers",
+      [direction],
+      () => this.aggregator.fetchMarketMovers(direction, userId),
       options,
     );
   }

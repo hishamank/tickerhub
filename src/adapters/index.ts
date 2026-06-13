@@ -17,3 +17,6 @@ export {
 // Stores
 export { InMemoryConfigStore } from "./stores/in-memory-config-store.js";
 export { InMemoryHealthStore } from "./stores/in-memory-health-store.js";
+
+// Rate limiting
+export { InMemoryRateLimitStore } from "./rate-limit/in-memory-rate-limit-store.js";

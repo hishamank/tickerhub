@@ -36,7 +36,7 @@ describe("HealthMetricsQuery", () => {
   it("reports remaining rate-limit budget", async () => {
     const { tracker, query } = build();
     const creds = { api_key: "k" };
-    tracker.record(creds, "finnhub", 5, null);
+    tracker.record(creds, "finnhub", { perMinute: 5 });
     const status = await query.getRateLimitStatus("finnhub", creds);
     expect(status.remaining.perMinute).toBe(4);
     expect(status.remaining.perDay).toBeUndefined(); // no per-day limit tracked

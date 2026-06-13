@@ -28,7 +28,9 @@ export interface ProviderRateLimitStatus {
   provider: string;
   remaining: {
     perMinute?: number | undefined;
+    perHour?: number | undefined;
     perDay?: number | undefined;
+    perMonth?: number | undefined;
   };
 }
 
@@ -115,7 +117,9 @@ export class HealthMetricsQuery {
       provider: providerName,
       remaining: {
         perMinute: budget.minute >= 0 ? budget.minute : undefined,
+        perHour: budget.hour >= 0 ? budget.hour : undefined,
         perDay: budget.day >= 0 ? budget.day : undefined,
+        perMonth: budget.month >= 0 ? budget.month : undefined,
       },
     };
   }

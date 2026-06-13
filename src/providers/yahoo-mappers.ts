@@ -7,7 +7,17 @@ import type {
   DividendData,
   EventData,
   HistoricalPrice,
+  CompanyProfile,
 } from "../types/index.js";
+
+/** Drop `undefined`/null/empty values so optional fields stay absent. */
+function clean<T extends Record<string, unknown>>(obj: T): T {
+  for (const k of Object.keys(obj)) {
+    const v = obj[k];
+    if (v === undefined || v === null || v === "") delete obj[k];
+  }
+  return obj;
+}
 
 /** A row from yahoo-finance2 `historical()` (fields vary by `events` option). */
 export interface YahooHistoricalRow {
@@ -135,4 +145,60 @@ export function mapHistorical(rows: YahooHistoricalRow[]): HistoricalPrice[] {
     close: item.close,
     volume: item.volume,
   }));
+}
+
+/** The subset of a yahoo-finance2 `quoteSummary()` result we map for profiles. */
+export interface YahooProfileLike {
+  assetProfile?: {
+    longBusinessSummary?: string;
+    sector?: string;
+    industry?: string;
+    website?: string;
+    country?: string;
+    city?: string;
+    state?: string;
+    address1?: string;
+    fullTimeEmployees?: number;
+    phone?: string;
+    companyOfficers?: Array<{ name?: string; title?: string }>;
+  };
+  price?: {
+    longName?: string;
+    shortName?: string;
+    exchangeName?: string;
+    currency?: string;
+    marketCap?: number;
+  };
+  defaultKeyStatistics?: { sharesOutstanding?: number };
+}
+
+export function mapYahooProfile(
+  r: YahooProfileLike,
+  symbol: string,
+): CompanyProfile {
+  const ap = r.assetProfile;
+  const pr = r.price;
+  const ceo = ap?.companyOfficers?.find((o) =>
+    /chief executive|ceo/i.test(o.title ?? ""),
+  )?.name;
+  const address = [ap?.address1, ap?.city, ap?.state, ap?.country]
+    .filter(Boolean)
+    .join(", ");
+  return clean({
+    symbol: symbol.toUpperCase(),
+    name: pr?.longName ?? pr?.shortName,
+    description: ap?.longBusinessSummary,
+    exchange: pr?.exchangeName,
+    currency: pr?.currency,
+    country: ap?.country,
+    sector: ap?.sector,
+    industry: ap?.industry,
+    website: ap?.website,
+    employees: ap?.fullTimeEmployees,
+    phone: ap?.phone,
+    address: address || undefined,
+    ceo,
+    marketCap: pr?.marketCap,
+    sharesOutstanding: r.defaultKeyStatistics?.sharesOutstanding,
+  }) as CompanyProfile;
 }

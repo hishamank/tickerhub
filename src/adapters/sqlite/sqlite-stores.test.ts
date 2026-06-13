@@ -9,7 +9,9 @@ function config(name: string): ProviderConfigRecord {
     providerType: "rest",
     requiresKey: true,
     rateLimitPerMinute: 60,
+    rateLimitPerHour: null,
     rateLimitPerDay: null,
+    rateLimitPerMonth: null,
     reliabilityScore: 8.5,
     enabled: true,
     paidTier: false,
@@ -89,5 +91,70 @@ describe("SQLite stores", () => {
     await stores.healthStore.deleteOlderThan(new Date(3000));
     const recent = await stores.healthStore.getRecentMetrics("finnhub", 10);
     expect(recent.map((m) => m.timestamp.getTime())).toEqual([5000]);
+  });
+
+  it("round-trips per-hour and per-month rate limits", async () => {
+    stores.configStore.upsertConfig({
+      ...config("tiingo"),
+      rateLimitPerHour: 50,
+      rateLimitPerMonth: 1000,
+    });
+    const all = await stores.configStore.getAllConfigs();
+    expect(all[0]).toMatchObject({
+      rateLimitPerHour: 50,
+      rateLimitPerMonth: 1000,
+    });
+  });
+
+  describe("SqliteCache", () => {
+    it("stores and retrieves a value", async () => {
+      await stores.cache.set("k", { a: 1 });
+      expect(await stores.cache.get<{ a: number }>("k")).toEqual({ a: 1 });
+    });
+
+    it("returns null for a missing key", async () => {
+      expect(await stores.cache.get("missing")).toBeNull();
+    });
+
+    it("expires a value past its TTL", async () => {
+      await stores.cache.set("k", "v", 0); // expires immediately
+      expect(await stores.cache.get("k")).toBeNull();
+    });
+
+    it("deletes by glob pattern", async () => {
+      await stores.cache.set("getQuote:AAPL", 1);
+      await stores.cache.set("getQuote:MSFT", 2);
+      await stores.cache.set("getDividends:AAPL", 3);
+      const removed = await stores.cache.deletePattern("getQuote:*");
+      expect(removed).toBe(2);
+      expect(await stores.cache.get("getQuote:AAPL")).toBeNull();
+      expect(await stores.cache.get("getDividends:AAPL")).toBe(3);
+    });
+  });
+
+  describe("SqliteRateLimitStore", () => {
+    it("persists and returns window state", () => {
+      stores.rateLimitStore.set("hash1", "fmp", "day", {
+        used: 7,
+        limit: 250,
+        windowStart: 1000,
+      });
+      expect(stores.rateLimitStore.get("hash1", "fmp", "day")).toEqual({
+        used: 7,
+        limit: 250,
+        windowStart: 1000,
+      });
+    });
+
+    it("returns null for an untracked window and clears on reset", () => {
+      expect(stores.rateLimitStore.get("h", "fmp", "minute")).toBeNull();
+      stores.rateLimitStore.set("h", "fmp", "minute", {
+        used: 1,
+        limit: 5,
+        windowStart: 0,
+      });
+      stores.rateLimitStore.reset();
+      expect(stores.rateLimitStore.get("h", "fmp", "minute")).toBeNull();
+    });
   });
 });

@@ -99,6 +99,38 @@ path, and error/empty paths. See `coingecko.test.ts` / `tiingo.test.ts` for the
 pattern. Library-based providers (see `yahoo-finance.test.ts`) mock the SDK with
 `vi.mock` + `vi.hoisted`.
 
+## Adding a new data type
+
+The taxonomy is a fixed set of normalized `DataType`s; each is served by one or
+more providers and aggregated with failover. To add one (e.g. `profile`):
+
+1. **Shape** — define the return type in `src/types/data.ts` and a Zod schema in
+   `src/types/validation.ts`.
+2. **Taxonomy** — add the string to the `DataType` union in
+   `src/types/provider.ts`, and add an optional `fetchX?` method to the
+   `MarketDataProvider` interface there.
+3. **Selection** — add a `DEFAULT_PROVIDER_PRIORITIES.<type>` list and add the
+   type to `supportedDataTypes` on the relevant `BUILTIN_PROVIDERS` entries
+   (`src/config/default-priorities.ts`).
+4. **Providers** — implement `fetchX` only in the providers whose **free** tier
+   serves it (see `docs/PROVIDERS.md`). Keep the provider class thin: put
+   response types in `<name>-types.ts` and the fetch+map logic in
+   `<name>-extra.ts`, exposed as a one-line delegating method (the
+   finnhub/fmp/alpha-vantage/coingecko providers follow this to stay under the
+   300-line cap).
+5. **Aggregator** — add a method to `SmartAggregator` that calls
+   `this.engine.tryProviders(...)` (singletons) or `tryProvidersList(...)`
+   (arrays).
+6. **Service** — add a `getX` method to `ProviderAggregatorService` and a
+   `TTL_CONFIG` entry in `src/cache/ttl-config.ts`.
+7. **Export** the new type from `src/index.ts`; **test** the provider mapping
+   and the aggregator fallback.
+
+For an **asset-class namespace** (like `crypto`/`forex`), use scoped data types
+(`crypto_quote`, `forex_rate`, …), add a sub-aggregator
+(`src/aggregator/<class>-aggregator.ts`) sharing the `ProviderQueryEngine`, and
+a sub-service (`src/services/<class>.service.ts`) exposed as `service.<class>`.
+
 ## Verify
 
 ```bash

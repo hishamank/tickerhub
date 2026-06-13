@@ -202,6 +202,112 @@ export const OptionChainSchema = z.object({
 export type ValidatedOptionChain = z.infer<typeof OptionChainSchema>;
 
 /**
+ * Company Profile Schema
+ */
+export const CompanyProfileSchema = z.object({
+  symbol: z.string().min(1).max(20),
+  name: z.string().optional(),
+  description: z.string().optional(),
+  exchange: z.string().optional(),
+  currency: z.string().optional(),
+  country: z.string().optional(),
+  sector: z.string().optional(),
+  industry: z.string().optional(),
+  website: z.string().optional(),
+  logo: z.string().optional(),
+  marketCap: z.number().nonnegative().optional(),
+  sharesOutstanding: z.number().nonnegative().optional(),
+  employees: z.number().int().nonnegative().optional(),
+  ipoDate: z.string().optional(),
+  ceo: z.string().optional(),
+  phone: z.string().optional(),
+  address: z.string().optional(),
+});
+
+export type ValidatedCompanyProfile = z.infer<typeof CompanyProfileSchema>;
+
+/** News article schema. */
+export const NewsArticleSchema = z.object({
+  headline: z.string().min(1),
+  url: z.string(),
+  publishedAt: z.coerce.date(),
+  summary: z.string().optional(),
+  source: z.string().optional(),
+  imageUrl: z.string().optional(),
+  symbols: z.array(z.string()).optional(),
+});
+
+/** IPO calendar entry schema. */
+export const IpoEventSchema = z.object({
+  date: z.string(),
+  symbol: z.string().optional(),
+  name: z.string().optional(),
+  exchange: z.string().optional(),
+  priceRangeLow: z.number().nonnegative().optional(),
+  priceRangeHigh: z.number().nonnegative().optional(),
+  shares: z.number().nonnegative().optional(),
+  status: z.string().optional(),
+});
+
+/** Symbol search result schema. */
+export const SymbolSearchResultSchema = z.object({
+  symbol: z.string().min(1),
+  name: z.string().optional(),
+  exchange: z.string().optional(),
+  type: z.string().optional(),
+  currency: z.string().optional(),
+});
+
+/** Insider transaction schema. */
+export const InsiderTransactionSchema = z.object({
+  symbol: z.string().min(1),
+  name: z.string().optional(),
+  transactionDate: z.string().optional(),
+  shares: z.number().optional(),
+  change: z.number().optional(),
+  price: z.number().nonnegative().optional(),
+  transactionType: z.string().optional(),
+});
+
+/** Technical-indicator series schema. */
+export const TechnicalIndicatorSchema = z.object({
+  symbol: z.string().min(1),
+  indicator: z.string().min(1),
+  interval: z.string().optional(),
+  values: z.array(z.object({ date: z.string(), value: z.number() })),
+});
+
+/** Market mover schema. */
+export const MarketMoverSchema = z.object({
+  symbol: z.string().min(1),
+  name: z.string().optional(),
+  price: z.number().optional(),
+  change: z.number().optional(),
+  changePercent: z.number().optional(),
+});
+
+/** Ranked crypto market entry schema. */
+export const CryptoMarketSchema = z.object({
+  symbol: z.string().min(1),
+  name: z.string().optional(),
+  price: z.number().nonnegative(),
+  marketCap: z.number().nonnegative().optional(),
+  volume24h: z.number().nonnegative().optional(),
+  change24h: z.number().optional(),
+  rank: z.number().int().positive().optional(),
+});
+
+/** Foreign-exchange rate schema. */
+export const ForexRateSchema = z.object({
+  from: z.string().min(1),
+  to: z.string().min(1),
+  rate: z.number().positive(),
+  timestamp: z.coerce.date(),
+  bid: z.number().positive().optional(),
+  ask: z.number().positive().optional(),
+});
+
+/**
  * Response Metadata Schema
  */
 export const ResponseMetadataSchema = z.object({

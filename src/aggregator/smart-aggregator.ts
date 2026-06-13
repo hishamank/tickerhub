@@ -1,13 +1,13 @@
 /**
- * Smart Aggregator — provider selection, fallback, credential resolution.
+ * Smart Aggregator — per-data-type wiring over the shared query engine.
  *
  * Dependencies (registry, credential provider, rate-limit tracker, health
- * monitor, logger) are injected. The per-call execution concerns (circuit
- * breaker, health recording, rate-limit quotas) live in ProviderExecutor.
+ * monitor, logger) are injected. The generic selection/fallback loop lives in
+ * ProviderQueryEngine; the per-call execution concerns (circuit breaker, health
+ * recording, rate-limit quotas) live in ProviderExecutor.
  */
 
 import { getLogger } from "../logging/index.js";
-import { isSupportedCryptoSymbol } from "../symbols/index.js";
 import type {
   QuoteData,
   DividendData,
@@ -16,18 +16,26 @@ import type {
   RatingData,
   HistoricalPrice,
   OptionChain,
+  CompanyProfile,
+  NewsArticle,
+  IpoEvent,
+  SymbolSearchResult,
+  InsiderTransaction,
+  TechnicalIndicator,
+  MarketMover,
   MacroIndicatorData,
   MarketDataProvider,
   DataType,
 } from "../types/index.js";
 import type { Logger } from "../ports/logger.js";
 import type { CredentialProvider } from "../ports/credential-provider.js";
-import { ProviderFactory } from "../providers/provider-factory.js";
-import { TradierProvider } from "../providers/tradier.js";
 import { ProviderRegistry } from "../config/provider-registry.js";
 import { HealthMonitor } from "../health/health-monitor.js";
 import { RateLimitTracker } from "../rate-limiting/tracker.js";
 import { ProviderExecutor } from "./provider-executor.js";
+import { ProviderQueryEngine } from "./provider-query-engine.js";
+import { CryptoAggregator } from "./crypto-aggregator.js";
+import { ForexAggregator } from "./forex-aggregator.js";
 import {
   enrichWithCurrencyInfo,
   executeWithAdrFallback,
@@ -43,29 +51,31 @@ export interface SmartAggregatorDeps {
 
 export class SmartAggregator {
   private readonly registry: ProviderRegistry;
-  private readonly credentials: CredentialProvider;
   private readonly logger: Logger;
   private readonly executor: ProviderExecutor;
-  private registryReady: Promise<void> | null = null;
+  private readonly engine: ProviderQueryEngine;
+
+  /** Crypto asset-class namespace (shares the query engine). */
+  readonly crypto: CryptoAggregator;
+  /** Forex asset-class namespace (shares the query engine). */
+  readonly forex: ForexAggregator;
 
   constructor(deps: SmartAggregatorDeps) {
     this.registry = deps.registry;
-    this.credentials = deps.credentials;
     this.logger = deps.logger ?? getLogger("smart-aggregator");
     this.executor = new ProviderExecutor(
       deps.healthMonitor ?? new HealthMonitor(),
       deps.rateLimitTracker ?? new RateLimitTracker(),
       this.logger,
     );
-    this.registryReady = this.registry.load().then(() => {});
-  }
-
-  /** Wait for the registry to be loaded before querying providers. */
-  private async ensureRegistry(): Promise<void> {
-    if (this.registryReady) {
-      await this.registryReady;
-      this.registryReady = null;
-    }
+    this.engine = new ProviderQueryEngine(
+      this.registry,
+      deps.credentials,
+      this.executor,
+      this.logger,
+    );
+    this.crypto = new CryptoAggregator(this.engine);
+    this.forex = new ForexAggregator(this.engine);
   }
 
   /**
@@ -76,12 +86,14 @@ export class SmartAggregator {
     dataType: DataType,
     symbol: string,
     userId: string,
-    pick: (provider: MarketDataProvider) => ((s: string) => Promise<T[]>) | undefined,
+    pick: (
+      provider: MarketDataProvider,
+    ) => ((s: string) => Promise<T[]>) | undefined,
   ): Promise<T[]> {
     return executeWithAdrFallback<T[]>(
       symbol,
       userId,
-      async (sym, uid) => (await this.tryProviders(dataType, sym, uid, pick)) ?? [],
+      async (sym, uid) => (await this.engine.tryProviders(dataType, sym, uid, pick)) ?? [],
       (result) => result.length === 0,
       [],
     );
@@ -133,10 +145,9 @@ export class SmartAggregator {
       symbol,
       userId,
       (sym, uid) =>
-        this.tryProviders("ratings", sym, uid, (provider) =>
+        this.engine.tryProviders("ratings", sym, uid, (provider) =>
           provider.fetchRatings
-            ? (requestedSymbol: string) =>
-                provider.fetchRatings!(requestedSymbol)
+            ? (requestedSymbol: string) => provider.fetchRatings!(requestedSymbol)
             : undefined,
         ),
       (result) => result === null,
@@ -171,11 +182,97 @@ export class SmartAggregator {
     userId: string = "system",
     expirationDate: Date,
   ): Promise<OptionChain | null> {
-    return this.tryProviders("options", symbol, userId, (provider) =>
+    return this.engine.tryProviders("options", symbol, userId, (provider) =>
       provider.fetchOptionChain
         ? (requestedSymbol: string) =>
             provider.fetchOptionChain!(requestedSymbol, expirationDate)
         : undefined,
+    );
+  }
+
+  async fetchProfile(
+    symbol: string,
+    userId: string = "system",
+  ): Promise<CompanyProfile | null> {
+    return executeWithAdrFallback<CompanyProfile | null>(
+      symbol,
+      userId,
+      (sym, uid) =>
+        this.engine.tryProviders("profile", sym, uid, (provider) =>
+          provider.fetchProfile
+            ? (requestedSymbol: string) => provider.fetchProfile!(requestedSymbol)
+            : undefined,
+        ),
+      (result) => result === null,
+      null,
+    );
+  }
+
+  fetchNews(symbol: string, userId: string = "system"): Promise<NewsArticle[]> {
+    return this.engine.tryProvidersList<NewsArticle>("news", symbol, userId, (p) =>
+      p.fetchNews ? (s) => p.fetchNews!(s) : undefined,
+    );
+  }
+
+  fetchIpoCalendar(userId: string = "system"): Promise<IpoEvent[]> {
+    return this.engine.tryProvidersList<IpoEvent>("ipo", "", userId, (p) =>
+      p.fetchIpoCalendar ? () => p.fetchIpoCalendar!() : undefined,
+    );
+  }
+
+  searchSymbols(
+    query: string,
+    userId: string = "system",
+  ): Promise<SymbolSearchResult[]> {
+    return this.engine.tryProvidersList<SymbolSearchResult>(
+      "search",
+      query,
+      userId,
+      (p) => (p.searchSymbols ? (q) => p.searchSymbols!(q) : undefined),
+    );
+  }
+
+  fetchInsiderTransactions(
+    symbol: string,
+    userId: string = "system",
+  ): Promise<InsiderTransaction[]> {
+    return this.engine.tryProvidersList<InsiderTransaction>(
+      "insider",
+      symbol,
+      userId,
+      (p) =>
+        p.fetchInsiderTransactions
+          ? (s) => p.fetchInsiderTransactions!(s)
+          : undefined,
+    );
+  }
+
+  fetchTechnicalIndicator(
+    symbol: string,
+    indicator: string,
+    userId: string = "system",
+    interval?: string,
+  ): Promise<TechnicalIndicator | null> {
+    return this.engine.tryProviders<TechnicalIndicator | null>(
+      "technicals",
+      symbol,
+      userId,
+      (p) =>
+        p.fetchTechnicalIndicator
+          ? (s) => p.fetchTechnicalIndicator!(s, indicator, interval)
+          : undefined,
+    );
+  }
+
+  fetchMarketMovers(
+    direction: "gainers" | "losers" | "actives",
+    userId: string = "system",
+  ): Promise<MarketMover[]> {
+    return this.engine.tryProvidersList<MarketMover>(
+      "movers",
+      direction,
+      userId,
+      (p) => (p.fetchMarketMovers ? () => p.fetchMarketMovers!(direction) : undefined),
     );
   }
 
@@ -189,109 +286,30 @@ export class SmartAggregator {
 
   /**
    * Fetch macroeconomic indicator data from providers supporting the macro
-   * data type, in priority order with credential resolution and rate limiting.
+   * data type, in priority order. The indicator code is passed through the
+   * generic engine in place of a symbol.
    */
   async fetchMacroIndicator(
     indicator: string,
     userId: string = "system",
   ): Promise<MacroIndicatorData | null> {
-    await this.ensureRegistry();
-
-    for (const meta of this.registry.getProvidersForDataType("macro")) {
-      const credentials = await this.credentials.resolve(meta.name, userId);
-      if (!credentials && meta.requiresKey) continue;
-
-      const provider = ProviderFactory.create(meta.name, credentials);
-      if (!provider?.fetchMacroIndicator) continue;
-      if (this.executor.isRateLimited(credentials, provider.name, meta)) {
-        continue;
-      }
-
-      try {
-        const result = await this.executor.execute(provider.name, () =>
-          provider.fetchMacroIndicator!(indicator),
-        );
-        this.executor.recordRateLimit(credentials, provider.name, meta);
-        if (result != null) return result;
-      } catch (error) {
-        this.logger.warn(`Failed to fetch macro from ${provider.name}:`, error);
-      }
-    }
-    return null;
+    return this.engine.tryProviders("macro", indicator, userId, (provider) =>
+      provider.fetchMacroIndicator
+        ? (code: string) => provider.fetchMacroIndicator!(code)
+        : undefined,
+    );
   }
 
   resetRateLimits(): void {
     this.executor.resetRateLimits();
   }
 
-  /** Generic provider iteration — resolves credentials, checks rate limits, tries in priority. */
-  private async tryProviders<T>(
-    dataType: DataType,
-    symbol: string,
-    userId: string,
-    getFetcher: (
-      provider: MarketDataProvider,
-    ) => ((symbol: string) => Promise<T>) | undefined,
-  ): Promise<T | null> {
-    await this.ensureRegistry();
-
-    for (const meta of this.registry.getProvidersForDataType(dataType)) {
-      const credentials = await this.credentials.resolve(meta.name, userId);
-      if (!credentials && meta.requiresKey) continue;
-
-      const provider =
-        meta.name === "tradier"
-          ? new TradierProvider(credentials)
-          : ProviderFactory.create(meta.name, credentials);
-      if (!provider) continue;
-
-      const fetcher = getFetcher(provider);
-      if (!fetcher) continue;
-      if (this.executor.isRateLimited(credentials, provider.name, meta)) {
-        continue;
-      }
-
-      try {
-        const result = await this.executor.execute(provider.name, () =>
-          fetcher(symbol),
-        );
-        this.executor.recordRateLimit(credentials, provider.name, meta);
-        if (result != null) return result;
-      } catch (error) {
-        this.logger.warn(
-          `Failed to fetch ${dataType} from ${provider.name}:`,
-          error,
-        );
-      }
-    }
-    return null;
-  }
-
-  private async tryProvidersForQuote(
+  private tryProvidersForQuote(
     symbol: string,
     userId: string,
   ): Promise<QuoteData | null> {
-    await this.ensureRegistry();
-
-    if (isSupportedCryptoSymbol(symbol)) {
-      const provider = ProviderFactory.create("coingecko", null);
-      if (provider) {
-        try {
-          const result = await this.executor.execute(provider.name, () =>
-            provider.fetchQuote(symbol),
-          );
-          if (result != null) return result;
-        } catch (error) {
-          this.logger.warn(
-            `Failed to fetch crypto quote from CoinGecko for ${symbol}:`,
-            error,
-          );
-        }
-      }
-      return null;
-    }
-
-    return this.tryProviders(
+    // Equity quotes only — crypto routes through `service.crypto.getQuote`.
+    return this.engine.tryProviders(
       "prices",
       symbol,
       userId,

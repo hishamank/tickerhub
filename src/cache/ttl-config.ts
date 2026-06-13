@@ -46,6 +46,27 @@ const TTL_CONFIG: Record<string, TTLConfig> = {
 
   // Macro indicators - infrequent updates (monthly/quarterly)
   getMacroIndicator: { staleAfter: 3600, maxAge: 86400 }, // 1 hour stale, 24 hours max
+
+  // News - refresh fairly often
+  getNews: { staleAfter: 600, maxAge: 3600 }, // 10 min stale, 1 hour max
+
+  // IPO calendar / search / insider - infrequent
+  getIpoCalendar: { staleAfter: 3600, maxAge: 86400 },
+  searchSymbols: { staleAfter: 86400, maxAge: 604800 },
+  getInsiderTransactions: { staleAfter: 3600, maxAge: 86400 },
+
+  // Technical indicators - recompute periodically
+  getTechnicalIndicator: { staleAfter: 3600, maxAge: 86400 },
+
+  // Market movers - intraday, short TTL
+  getMarketMovers: { staleAfter: 300, maxAge: 900 }, // 5 min stale, 15 min max
+
+  // Crypto / forex
+  getCryptoQuote: { staleAfter: 60, maxAge: 300 },
+  getCryptoHistorical: { staleAfter: 86400, maxAge: 604800 },
+  getCryptoMarkets: { staleAfter: 300, maxAge: 900 },
+  getForexRate: { staleAfter: 60, maxAge: 300 },
+  getForexHistorical: { staleAfter: 86400, maxAge: 604800 },
 };
 
 const DEFAULT_TTL: TTLConfig = { staleAfter: 300, maxAge: 3600 }; // 5 min stale, 1 hour max

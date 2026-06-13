@@ -54,3 +54,25 @@ export interface FMPHistoricalItem {
 export interface FMPHistoricalResponse {
   historical?: FMPHistoricalItem[];
 }
+
+export interface FMPProfile {
+  symbol?: string;
+  companyName?: string;
+  currency?: string;
+  exchangeShortName?: string;
+  exchange?: string;
+  industry?: string;
+  sector?: string;
+  country?: string;
+  website?: string;
+  description?: string;
+  ceo?: string;
+  fullTimeEmployees?: string;
+  phone?: string;
+  address?: string;
+  city?: string;
+  state?: string;
+  image?: string;
+  ipoDate?: string;
+  mktCap?: number;
+}

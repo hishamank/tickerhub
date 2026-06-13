@@ -13,7 +13,10 @@ import { CircuitBreaker } from "../resilience/index.js";
 import { ProviderError, ProviderErrorCode } from "../types/provider.js";
 import type { Logger } from "../ports/logger.js";
 import type { HealthMonitor } from "../health/health-monitor.js";
-import type { RateLimitTracker } from "../rate-limiting/tracker.js";
+import type {
+  RateLimitTracker,
+  RateLimits,
+} from "../rate-limiting/tracker.js";
 import type { ProviderMetadata } from "../config/provider-registry.js";
 
 export class ProviderExecutor {
@@ -26,7 +29,17 @@ export class ProviderExecutor {
     private readonly logger: Logger,
   ) {}
 
-  /** True if the provider's quota (per-minute or per-day) is exhausted. */
+  /** Per-window limits for a provider, drawn from its registry metadata. */
+  private limitsFor(meta: ProviderMetadata): RateLimits {
+    return {
+      perMinute: meta.rateLimitPerMinute,
+      perHour: meta.rateLimitPerHour,
+      perDay: meta.rateLimitPerDay,
+      perMonth: meta.rateLimitPerMonth,
+    };
+  }
+
+  /** True if any of the provider's quota windows is exhausted. */
   isRateLimited(
     credentials: Record<string, string> | null,
     providerName: string,
@@ -35,8 +48,7 @@ export class ProviderExecutor {
     const exhausted = this.rateLimitTracker.isExhausted(
       credentials,
       providerName,
-      meta.rateLimitPerMinute,
-      meta.rateLimitPerDay,
+      this.limitsFor(meta),
     );
     if (exhausted) {
       this.logger.debug(`Rate limit exhausted for ${providerName}, skipping`);
@@ -53,8 +65,7 @@ export class ProviderExecutor {
     this.rateLimitTracker.record(
       credentials,
       providerName,
-      meta.rateLimitPerMinute,
-      meta.rateLimitPerDay,
+      this.limitsFor(meta),
     );
   }
 

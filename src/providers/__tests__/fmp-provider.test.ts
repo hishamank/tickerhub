@@ -136,6 +136,92 @@ describe("FMPProvider", () => {
     });
   });
 
+  describe("fetchProfile", () => {
+    it("maps a company profile entry", async () => {
+      fetchMock.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () =>
+          Promise.resolve([
+            {
+              symbol: "AAPL",
+              companyName: "Apple Inc.",
+              currency: "USD",
+              exchangeShortName: "NASDAQ",
+              industry: "Consumer Electronics",
+              sector: "Technology",
+              country: "US",
+              website: "https://apple.com",
+              ceo: "Tim Cook",
+              fullTimeEmployees: "161000",
+              image: "https://logo.png",
+              ipoDate: "1980-12-12",
+              mktCap: 3_000_000_000_000,
+              address: "One Apple Park Way",
+              city: "Cupertino",
+              state: "CA",
+            },
+          ]),
+      });
+      provider = new FMPProvider({ api_key: "test-api-key" });
+      const profile = await provider.fetchProfile!("AAPL");
+      expect(profile?.name).toBe("Apple Inc.");
+      expect(profile?.exchange).toBe("NASDAQ");
+      expect(profile?.employees).toBe(161000);
+      expect(profile?.marketCap).toBe(3_000_000_000_000);
+      expect(profile?.address).toBe("One Apple Park Way, Cupertino, CA");
+    });
+
+    it("returns null profile on a 403 response", async () => {
+      fetchMock.mockResolvedValue({ ok: false, status: 403 });
+      provider = new FMPProvider({ api_key: "test-api-key" });
+      expect(await provider.fetchProfile!("AAPL")).toBeNull();
+    });
+  });
+
+  describe("fetchMarketMovers", () => {
+    it("maps gainers", async () => {
+      fetchMock.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () =>
+          Promise.resolve([
+            { symbol: "AAPL", name: "Apple", price: 180, change: 5, changesPercentage: 2.8 },
+          ]),
+      });
+      provider = new FMPProvider({ api_key: "test-api-key" });
+      const movers = await provider.fetchMarketMovers!("gainers");
+      expect(movers[0]?.symbol).toBe("AAPL");
+      expect(movers[0]?.changePercent).toBe(2.8);
+    });
+  });
+
+  describe("fetchForexRate", () => {
+    it("maps a forex quote into a rate", async () => {
+      fetchMock.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () =>
+          Promise.resolve([{ symbol: "EURUSD", price: 1.085, bid: 1.0849, ask: 1.0851 }]),
+      });
+      provider = new FMPProvider({ api_key: "test-api-key" });
+      const rate = await provider.fetchForexRate!("EUR", "USD");
+      expect(rate?.from).toBe("EUR");
+      expect(rate?.to).toBe("USD");
+      expect(rate?.rate).toBe(1.085);
+    });
+
+    it("returns null when the pair is unknown", async () => {
+      fetchMock.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve([]),
+      });
+      provider = new FMPProvider({ api_key: "test-api-key" });
+      expect(await provider.fetchForexRate!("EUR", "ZZZ")).toBeNull();
+    });
+  });
+
   describe("healthCheck", () => {
     it("should return false on 403 response", async () => {
       fetchMock.mockResolvedValue({

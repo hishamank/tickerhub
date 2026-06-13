@@ -11,6 +11,7 @@ import type {
   EarningsData,
   RatingData,
   HistoricalPrice,
+  CompanyProfile,
 } from "../types/index.js";
 import { ProviderError, ProviderErrorCode } from "../types/provider.js";
 import { handleHttpError } from "./provider-utils.js";
@@ -22,7 +23,17 @@ import type {
   FinnhubRecommendation,
   FinnhubPriceTarget,
   FinnhubCandles,
+  FinnhubProfile,
 } from "./finnhub-types.js";
+
+/** Drop `undefined`/null/empty values so optional fields stay absent. */
+function clean<T extends Record<string, unknown>>(obj: T): T {
+  for (const k of Object.keys(obj)) {
+    const v = obj[k];
+    if (v === undefined || v === null || v === "") delete obj[k];
+  }
+  return obj;
+}
 
 /** Map a Finnhub 429 to a retryable rate-limit error; else standard HTTP mapping. */
 export function mapFinnhubError(error: unknown, context: string): never {
@@ -230,4 +241,31 @@ export function mapCandles(candles: FinnhubCandles): HistoricalPrice[] {
     });
   }
   return prices;
+}
+
+/** Map a Finnhub `/stock/profile2` payload to a normalized CompanyProfile. */
+export function mapFinnhubProfile(
+  p: FinnhubProfile,
+  symbol: string,
+): CompanyProfile {
+  // Finnhub reports market cap and shares outstanding in millions.
+  const million = 1_000_000;
+  return clean({
+    symbol: symbol.toUpperCase(),
+    name: p.name,
+    exchange: p.exchange,
+    currency: p.currency,
+    country: p.country,
+    industry: p.finnhubIndustry,
+    website: p.weburl,
+    logo: p.logo,
+    phone: p.phone,
+    ipoDate: p.ipo,
+    marketCap:
+      p.marketCapitalization != null
+        ? p.marketCapitalization * million
+        : undefined,
+    sharesOutstanding:
+      p.shareOutstanding != null ? p.shareOutstanding * million : undefined,
+  }) as CompanyProfile;
 }

@@ -23,6 +23,49 @@ export interface FinnhubNews {
   summary: string;
   url: string;
   datetime: number;
+  image?: string;
+  source?: string;
+}
+
+export interface FinnhubIpoItem {
+  date: string;
+  exchange?: string;
+  name?: string;
+  numberOfShares?: number;
+  price?: string;
+  status?: string;
+  symbol?: string;
+}
+
+export interface FinnhubIpoResponse {
+  ipoCalendar?: FinnhubIpoItem[];
+}
+
+export interface FinnhubSearchItem {
+  description?: string;
+  displaySymbol?: string;
+  symbol: string;
+  type?: string;
+}
+
+export interface FinnhubSearchResponse {
+  count?: number;
+  result?: FinnhubSearchItem[];
+}
+
+export interface FinnhubInsiderItem {
+  name?: string;
+  share?: number;
+  change?: number;
+  filingDate?: string;
+  transactionDate?: string;
+  transactionPrice?: number;
+  transactionCode?: string;
+}
+
+export interface FinnhubInsiderResponse {
+  data?: FinnhubInsiderItem[];
+  symbol?: string;
 }
 
 export interface FinnhubEarningsItem {
@@ -61,4 +104,19 @@ export interface FinnhubCandles {
   l: number[];
   c: number[];
   v: number[];
+}
+
+export interface FinnhubProfile {
+  name?: string;
+  ticker?: string;
+  country?: string;
+  currency?: string;
+  exchange?: string;
+  ipo?: string;
+  marketCapitalization?: number; // in millions USD
+  shareOutstanding?: number; // in millions
+  phone?: string;
+  weburl?: string;
+  logo?: string;
+  finnhubIndustry?: string;
 }

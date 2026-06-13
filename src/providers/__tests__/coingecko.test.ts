@@ -17,7 +17,8 @@ describe("CoinGeckoProvider", () => {
   it("exposes correct metadata", () => {
     const p = provider();
     expect(p.name).toBe("coingecko");
-    expect(p.supportedDataTypes).toEqual(["prices"]);
+    expect(p.supportedDataTypes).toContain("prices");
+    expect(p.supportedDataTypes).toContain("crypto_markets");
   });
 
   it("throws SYMBOL_NOT_FOUND for an unsupported symbol without calling fetch", async () => {
@@ -67,5 +68,86 @@ describe("CoinGeckoProvider", () => {
   it("healthCheck returns true when ping succeeds", async () => {
     fetchMock.mockResolvedValue({ ok: true } as Response);
     expect(await provider().healthCheck()).toBe(true);
+  });
+
+  it("maps crypto OHLC history within the date range", async () => {
+    const ts = Date.UTC(2024, 0, 2);
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => [[ts, 42000, 43000, 41000, 42500]],
+    } as Response);
+    const hist = await provider().fetchCryptoHistorical(
+      "BTC",
+      new Date("2024-01-01"),
+      new Date("2024-01-03"),
+    );
+    expect(hist).toHaveLength(1);
+    expect(hist[0]?.date).toBe("2024-01-02");
+    expect(hist[0]?.close).toBe(42500);
+  });
+
+  it("returns empty history for an unsupported crypto symbol", async () => {
+    const hist = await provider().fetchCryptoHistorical(
+      "NOTACOIN",
+      new Date("2024-01-01"),
+      new Date("2024-01-03"),
+    );
+    expect(hist).toEqual([]);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("maps ranked crypto markets", async () => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => [
+        {
+          symbol: "btc",
+          name: "Bitcoin",
+          current_price: 42500,
+          market_cap: 800_000_000_000,
+          total_volume: 20_000_000_000,
+          price_change_percentage_24h: 1.5,
+          market_cap_rank: 1,
+        },
+      ],
+    } as Response);
+    const markets = await provider().fetchCryptoMarkets(10);
+    expect(markets[0]?.symbol).toBe("BTC");
+    expect(markets[0]?.rank).toBe(1);
+    expect(markets[0]?.price).toBe(42500);
+  });
+
+  it("does not send a Demo key header when keyless", async () => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ bitcoin: { usd: 50000, usd_24h_change: 1 } }),
+    } as Response);
+    await provider().fetchQuote("BTC");
+    const headers = fetchMock.mock.calls[0]?.[1]?.headers as Record<
+      string,
+      string
+    >;
+    expect(headers["x-cg-demo-api-key"]).toBeUndefined();
+  });
+
+  it("sends the x-cg-demo-api-key header when a Demo key is provided", async () => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ bitcoin: { usd: 50000, usd_24h_change: 1 } }),
+    } as Response);
+    const keyed = new CoinGeckoProvider(
+      { api_key: "demo-123" },
+      { rateLimitDelayMs: 0 },
+    );
+    await keyed.fetchQuote("BTC");
+    const headers = fetchMock.mock.calls[0]?.[1]?.headers as Record<
+      string,
+      string
+    >;
+    expect(headers["x-cg-demo-api-key"]).toBe("demo-123");
   });
 });

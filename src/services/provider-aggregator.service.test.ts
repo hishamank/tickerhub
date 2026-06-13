@@ -54,6 +54,43 @@ describe("ProviderAggregatorService", () => {
     expect(aggregator.fetchQuote).toHaveBeenCalledTimes(2);
   });
 
+  it("exposes a crypto namespace that aggregates and caches", async () => {
+    const crypto = {
+      fetchMarkets: vi.fn(async () => [{ symbol: "BTC", price: 42500, rank: 1 }]),
+    };
+    const { service } = build({
+      crypto,
+    } as unknown as Partial<SmartAggregator>);
+
+    const first = await service.crypto.getMarkets(10);
+    expect(first.data[0]?.symbol).toBe("BTC");
+    expect(first.metadata.source).toBe("provider");
+
+    const second = await service.crypto.getMarkets(10);
+    expect(second.metadata.source).toBe("cache");
+    expect(crypto.fetchMarkets).toHaveBeenCalledTimes(1);
+  });
+
+  it("exposes a forex namespace that aggregates and caches", async () => {
+    const forex = {
+      fetchRate: vi.fn(async () => ({
+        from: "EUR",
+        to: "USD",
+        rate: 1.085,
+        timestamp: new Date(0),
+      })),
+    };
+    const { service } = build({ forex } as unknown as Partial<SmartAggregator>);
+
+    const first = await service.forex.getRate("EUR", "USD");
+    expect(first.data?.rate).toBe(1.085);
+    expect(first.metadata.source).toBe("provider");
+
+    const second = await service.forex.getRate("EUR", "USD");
+    expect(second.metadata.source).toBe("cache");
+    expect(forex.fetchRate).toHaveBeenCalledTimes(1);
+  });
+
   it("delegates health, provider list, and rate-limit reset", async () => {
     const { service, aggregator } = build();
     expect(service.getProviderHealth("finnhub").status).toBe("enabled");

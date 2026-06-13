@@ -14,6 +14,7 @@ import type {
   EventData,
   EarningsData,
   HistoricalPrice,
+  CompanyProfile,
   DataType,
   RateLimitConfig,
 } from "../types/index.js";
@@ -23,15 +24,18 @@ import {
   DividendDataSchema,
   EventDataSchema,
   EarningsDataSchema,
+  CompanyProfileSchema,
   validateData,
 } from "../types/validation.js";
 import {
   type YahooHistoricalRow,
   type YahooQuoteLike,
+  type YahooProfileLike,
   mapQuote,
   mapDividends,
   mapSplitEvents,
   mapHistorical,
+  mapYahooProfile,
 } from "./yahoo-mappers.js";
 
 const logger = getLogger("yahoo-finance", "provider-aggregator/providers");
@@ -53,6 +57,7 @@ export class YahooFinanceProvider extends BaseProvider {
     "dividends",
     "earnings",
     "events",
+    "profile",
   ];
   readonly rateLimit: RateLimitConfig = {
     requestsPerHour: 2000, // Yahoo Finance free tier limit
@@ -272,6 +277,32 @@ export class YahooFinanceProvider extends BaseProvider {
       return mapHistorical(result as YahooHistoricalRow[]);
     } catch (error) {
       return this.handleHttpError(error, `fetchHistoricalPrices(${symbol})`);
+    }
+  }
+
+  /**
+   * Fetch company profile via quoteSummary (assetProfile + price modules).
+   */
+  async fetchProfile(symbol: string): Promise<CompanyProfile | null> {
+    this.validateSymbol(symbol);
+
+    try {
+      const normalizedSymbol = symbol.toUpperCase();
+      const result = await yahooFinance.quoteSummary(normalizedSymbol, {
+        modules: ["assetProfile", "price", "defaultKeyStatistics"],
+      });
+      if (!result) return null;
+
+      return validateData(
+        CompanyProfileSchema,
+        mapYahooProfile(
+          result as unknown as YahooProfileLike,
+          normalizedSymbol,
+        ),
+        `Yahoo Finance profile for ${symbol}`,
+      );
+    } catch (error) {
+      return this.handleHttpError(error, `fetchProfile(${symbol})`);
     }
   }
 

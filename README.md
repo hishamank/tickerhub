@@ -30,13 +30,20 @@ const quote = await service.getQuote("AAPL");
 console.log(quote.data, quote.metadata.source); // "provider" | "cache"
 
 const dividends = await service.getDividends("MSFT");
-const history = await service.getHistoricalPrices(
-  "AAPL",
-  "system",
-  new Date("2024-01-01"),
-  new Date("2024-06-01"),
-);
+const profile = await service.getCompanyProfile("AAPL");
+const news = await service.getNews("AAPL");
+
+// Asset-class namespaces — each exposes only the data types valid for it:
+const btc = await service.crypto.getQuote("BTC");
+const markets = await service.crypto.getMarkets(50);
+const eurusd = await service.forex.getRate("EUR", "USD");
 ```
+
+Every method returns `{ data, metadata }`; data is aggregated across providers
+in quality order with automatic fallback and rate-limit-aware skipping. The full
+method surface (quotes, dividends, earnings, ratings, events, historical,
+options, macro, profile, news, IPO calendar, search, insider, technicals,
+movers, plus the `crypto`/`forex` namespaces) lives on `service`.
 
 Provider API keys are read from the environment by default — see
 [`.env.example`](./.env.example). Providers without a key are simply skipped;
@@ -51,10 +58,11 @@ interfaces. Every external concern is a **port** with a zero-config default
 | Port | Default (zero-config) | Optional |
 |------|----------------------|----------|
 | `Logger` | `ConsoleLogger` | `NoopLogger`, or your own |
-| `Cache` | `InMemoryCache` (TTL Map) | `RedisCache` (`/redis`, peer `ioredis`) |
+| `Cache` | `InMemoryCache` (TTL Map) | `RedisCache` (`/redis`, peer `ioredis`), `SqliteCache` (`/sqlite`) |
 | `CredentialProvider` | `EnvCredentialProvider` | `ConfigCredentialProvider`, custom (per-user) |
 | `ConfigStore` | `InMemoryConfigStore` | `SqliteConfigStore` (`/sqlite`) |
 | `HealthMetricsStore` | `InMemoryHealthStore` | `SqliteHealthStore` (`/sqlite`) |
+| `RateLimitStore` | `InMemoryRateLimitStore` | `SqliteRateLimitStore` (`/sqlite`) |
 
 ```ts
 import { createAggregator, ConfigCredentialProvider } from "tickerhub";
@@ -70,6 +78,27 @@ const { service } = createAggregator({
     finnhub: { api_key: "..." },
     alpaca: { api_key: "...", api_secret: "..." },
   }),
+  configStore,
+  healthStore,
+});
+```
+
+### Durable cache + rate limits (single SQLite file)
+
+One DB file can back the response cache, rate-limit budgets, config, and health
+— so monthly quotas (Marketstack, CoinGecko) and cached responses survive
+restarts:
+
+```ts
+import { createAggregator } from "tickerhub";
+import { openSqliteStores } from "tickerhub/sqlite";
+
+const { cache, rateLimitStore, configStore, healthStore } =
+  await openSqliteStores("./market-data.db");
+
+const { service } = createAggregator({
+  cache, // SqliteCache — SWR responses persist on disk
+  rateLimitStore, // SqliteRateLimitStore — daily/monthly budgets survive restarts
   configStore,
   healthStore,
 });
@@ -96,8 +125,10 @@ Marketstack, Alpaca, Nasdaq Data Link, CoinGecko (crypto), Tradier (options).
 Selection is priority-ordered per data type with automatic fallback; see
 `DEFAULT_PROVIDER_PRIORITIES` and override per provider via the `ConfigStore`.
 
-Adding a provider is documented step-by-step in [GUIDE.md](./GUIDE.md). Keys for
-the built-in providers are listed in [`.env.example`](./.env.example).
+The researched free-tier capability matrix and per-provider rate limits live in
+[`docs/PROVIDERS.md`](./docs/PROVIDERS.md). Adding a provider **or a new data
+type** is documented step-by-step in [GUIDE.md](./GUIDE.md). Keys for the
+built-in providers are listed in [`.env.example`](./.env.example).
 
 ## Resilience
 
@@ -107,8 +138,9 @@ the built-in providers are listed in [`.env.example`](./.env.example).
 - **Circuit breaker** — applied uniformly to every provider call; trips after
   repeated failures and short-circuits, excluding rate-limit errors. Recovers
   via half-open probing.
-- **Rate limiting** — per-key, per-minute/per-day quota tracking skips exhausted
-  providers before calling them.
+- **Rate limiting** — per-key quota tracking across per-minute/hour/day/month
+  windows skips exhausted providers before calling them. Use the
+  `SqliteRateLimitStore` to make daily/monthly budgets durable across restarts.
 - **Cross-provider fallback** — the aggregator tries the next provider when one
   returns nothing or errors.
 

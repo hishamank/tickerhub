@@ -12,6 +12,7 @@ import type {
   EarningsData,
   RatingData,
   HistoricalPrice,
+  CompanyProfile,
 } from "../types/index.js";
 import { ProviderError, ProviderErrorCode } from "../types/provider.js";
 import type {
@@ -19,7 +20,17 @@ import type {
   FMPDividend,
   FMPEarningsItem,
   FMPHistoricalItem,
+  FMPProfile,
 } from "./fmp-types.js";
+
+/** Drop `undefined`/null/empty values so optional fields stay absent. */
+function clean<T extends Record<string, unknown>>(obj: T): T {
+  for (const k of Object.keys(obj)) {
+    const v = obj[k];
+    if (v === undefined || v === null || v === "") delete obj[k];
+  }
+  return obj;
+}
 
 const logger = getLogger("fmp", "provider-aggregator/providers");
 
@@ -131,4 +142,30 @@ export function mapRatingToConsensus(rating: string): RatingData["consensus"] {
   if (normalized.includes("buy")) return "buy";
   if (normalized.includes("sell")) return "sell";
   return "hold";
+}
+
+/** Map an FMP `/profile/{symbol}` entry to a normalized CompanyProfile. */
+export function mapFmpProfile(p: FMPProfile, symbol: string): CompanyProfile {
+  const employees = p.fullTimeEmployees
+    ? Number.parseInt(p.fullTimeEmployees, 10)
+    : undefined;
+  const address = [p.address, p.city, p.state].filter(Boolean).join(", ");
+  return clean({
+    symbol: (p.symbol ?? symbol).toUpperCase(),
+    name: p.companyName,
+    description: p.description,
+    exchange: p.exchangeShortName ?? p.exchange,
+    currency: p.currency,
+    country: p.country,
+    sector: p.sector,
+    industry: p.industry,
+    website: p.website,
+    logo: p.image,
+    ceo: p.ceo,
+    phone: p.phone,
+    address: address || undefined,
+    ipoDate: p.ipoDate,
+    marketCap: p.mktCap,
+    employees: employees !== undefined && !Number.isNaN(employees) ? employees : undefined,
+  }) as CompanyProfile;
 }

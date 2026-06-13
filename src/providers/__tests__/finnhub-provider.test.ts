@@ -68,6 +68,102 @@ describe("FinnhubProvider (fetch-based)", () => {
     ).rejects.toMatchObject({ retryable: true });
   });
 
+  it("maps a company profile (millions → absolute)", async () => {
+    fetchMock.mockResolvedValue(
+      jsonResponse({
+        name: "Apple Inc",
+        ticker: "AAPL",
+        exchange: "NASDAQ NMS",
+        currency: "USD",
+        country: "US",
+        finnhubIndustry: "Technology",
+        weburl: "https://apple.com",
+        marketCapitalization: 3_000_000, // millions
+        shareOutstanding: 15_000, // millions
+        ipo: "1980-12-12",
+      }),
+    );
+    const profile = await new FinnhubProvider(creds).fetchProfile!("AAPL");
+    expect(profile?.name).toBe("Apple Inc");
+    expect(profile?.industry).toBe("Technology");
+    expect(profile?.marketCap).toBe(3_000_000 * 1_000_000);
+    expect(profile?.sharesOutstanding).toBe(15_000 * 1_000_000);
+    expect(profile?.ipoDate).toBe("1980-12-12");
+  });
+
+  it("returns null profile when the payload has no name", async () => {
+    fetchMock.mockResolvedValue(jsonResponse({}));
+    expect(await new FinnhubProvider(creds).fetchProfile!("ZZZZ")).toBeNull();
+  });
+
+  it("maps company news", async () => {
+    fetchMock.mockResolvedValue(
+      jsonResponse([
+        {
+          headline: "Apple ships a thing",
+          summary: "Details.",
+          url: "https://news/1",
+          datetime: 1_700_000_000,
+          source: "Reuters",
+          image: "https://img/1.png",
+        },
+      ]),
+    );
+    const news = await new FinnhubProvider(creds).fetchNews!("AAPL");
+    expect(news).toHaveLength(1);
+    expect(news[0]?.headline).toBe("Apple ships a thing");
+    expect(news[0]?.source).toBe("Reuters");
+    expect(news[0]?.symbols).toEqual(["AAPL"]);
+  });
+
+  it("maps insider transactions", async () => {
+    fetchMock.mockResolvedValue(
+      jsonResponse({
+        symbol: "AAPL",
+        data: [
+          {
+            name: "COOK TIMOTHY",
+            share: 100,
+            change: -50,
+            transactionDate: "2024-02-01",
+            transactionPrice: 180,
+            transactionCode: "S",
+          },
+        ],
+      }),
+    );
+    const tx = await new FinnhubProvider(creds).fetchInsiderTransactions!("AAPL");
+    expect(tx).toHaveLength(1);
+    expect(tx[0]?.name).toBe("COOK TIMOTHY");
+    expect(tx[0]?.change).toBe(-50);
+    expect(tx[0]?.transactionType).toBe("S");
+  });
+
+  it("maps the IPO calendar", async () => {
+    fetchMock.mockResolvedValue(
+      jsonResponse({
+        ipoCalendar: [
+          { date: "2024-03-01", symbol: "NEWCO", name: "New Co", exchange: "NASDAQ", status: "expected" },
+        ],
+      }),
+    );
+    const ipos = await new FinnhubProvider(creds).fetchIpoCalendar!();
+    expect(ipos).toHaveLength(1);
+    expect(ipos[0]?.symbol).toBe("NEWCO");
+  });
+
+  it("maps symbol search results", async () => {
+    fetchMock.mockResolvedValue(
+      jsonResponse({
+        count: 1,
+        result: [{ description: "APPLE INC", symbol: "AAPL", type: "Common Stock" }],
+      }),
+    );
+    const results = await new FinnhubProvider(creds).searchSymbols!("apple");
+    expect(results[0]?.symbol).toBe("AAPL");
+    expect(results[0]?.name).toBe("APPLE INC");
+  });
+
   it("healthCheck returns true on success and false on error", async () => {
     fetchMock.mockResolvedValue(
       jsonResponse({ c: 1, h: 1, l: 1, o: 1, pc: 1, t: 1 }),

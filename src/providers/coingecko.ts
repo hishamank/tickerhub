@@ -2,17 +2,30 @@
  * CoinGecko Provider
  *
  * Free cryptocurrency price data provider.
- * No API key required for basic tier (rate-limited to ~30 calls/min).
+ * Works keyless, but accepts an optional Demo API key (COINGECKO_API_KEY) for
+ * higher, stabler limits (~30 calls/min, 10k/month) via the x-cg-demo-api-key
+ * header.
  *
  * API: https://www.coingecko.com/en/api/documentation
  */
 
 import { getLogger } from "../logging/index.js";
 import { Decimal } from "decimal.js";
-import type { RateLimitConfig, DataType, QuoteData } from "../types/index.js";
+import type {
+  RateLimitConfig,
+  DataType,
+  QuoteData,
+  HistoricalPrice,
+  CryptoMarket,
+} from "../types/index.js";
 import { ProviderError, ProviderErrorCode } from "../types/provider.js";
 import { BaseProvider } from "./base-provider.js";
 import { getCoinGeckoId } from "../symbols/index.js";
+import {
+  coingeckoHistorical,
+  coingeckoMarkets,
+  type CgGet,
+} from "./coingecko-extra.js";
 
 const logger = getLogger("coingecko-provider", "packages/provider-aggregator");
 
@@ -34,7 +47,12 @@ export interface CoinGeckoProviderConfig {
 
 export class CoinGeckoProvider extends BaseProvider {
   readonly name = "coingecko";
-  readonly supportedDataTypes: DataType[] = ["prices"];
+  readonly supportedDataTypes: DataType[] = [
+    "prices",
+    "crypto_quote",
+    "crypto_historical",
+    "crypto_markets",
+  ];
   readonly rateLimit: RateLimitConfig = {
     requestsPerMinute: 30,
     requestsPerHour: null,
@@ -58,6 +76,19 @@ export class CoinGeckoProvider extends BaseProvider {
       retryBackoffMs: config.retryBackoffMs ?? 1000,
       rateLimitDelayMs: config.rateLimitDelayMs ?? RATE_LIMIT_DELAY_MS,
     };
+  }
+
+  /**
+   * Request headers, including the optional CoinGecko Demo API key. The Demo key
+   * raises the free limits (~30/min, 10k/month) and stabilizes access; without
+   * it the public endpoint still works but is throttled harder.
+   */
+  private buildHeaders(): Record<string, string> {
+    const headers: Record<string, string> = { Accept: "application/json" };
+    if (this.apiKey) {
+      headers["x-cg-demo-api-key"] = this.apiKey;
+    }
+    return headers;
   }
 
   /**
@@ -99,9 +130,7 @@ export class CoinGeckoProvider extends BaseProvider {
 
       const response = await fetch(url, {
         method: "GET",
-        headers: {
-          Accept: "application/json",
-        },
+        headers: this.buildHeaders(),
       });
 
       if (!response.ok) {
@@ -204,9 +233,7 @@ export class CoinGeckoProvider extends BaseProvider {
 
       const response = await fetch(url, {
         method: "GET",
-        headers: {
-          Accept: "application/json",
-        },
+        headers: this.buildHeaders(),
       });
 
       if (!response.ok) {
@@ -263,6 +290,51 @@ export class CoinGeckoProvider extends BaseProvider {
     }
   }
 
+  /** GET JSON from CoinGecko with rate-limit pacing and error mapping. */
+  private async getJson<T>(url: string): Promise<T> {
+    await this.applyRateLimit();
+    const response = await fetch(url, { headers: this.buildHeaders() });
+    if (!response.ok) {
+      if (response.status === 429) {
+        throw new ProviderError(
+          ProviderErrorCode.RATE_LIMIT_EXCEEDED,
+          "CoinGecko rate limit exceeded",
+          true,
+          60,
+        );
+      }
+      throw new ProviderError(
+        ProviderErrorCode.PROVIDER_ERROR,
+        `CoinGecko API error: ${response.status} ${response.statusText}`,
+        true,
+      );
+    }
+    return (await response.json()) as T;
+  }
+
+  /** Bound path getter for the extended-capability helpers. */
+  private readonly getPath: CgGet = <T,>(path: string): Promise<T> =>
+    this.getJson<T>(`${COINGECKO_BASE_URL}${path}`);
+
+  /** Crypto quote (alias of fetchQuote for the crypto namespace). */
+  fetchCryptoQuote(symbol: string): Promise<QuoteData> {
+    return this.fetchQuote(symbol);
+  }
+
+  /** Historical OHLC for a crypto symbol over a date range. */
+  fetchCryptoHistorical(
+    symbol: string,
+    from: Date,
+    to: Date,
+  ): Promise<HistoricalPrice[]> {
+    return coingeckoHistorical(this.getPath, symbol, from, to);
+  }
+
+  /** Ranked crypto markets by market cap. */
+  fetchCryptoMarkets(limit: number = 50): Promise<CryptoMarket[]> {
+    return coingeckoMarkets(this.getPath, limit);
+  }
+
   /**
    * Health check - verify CoinGecko API is accessible
    */
@@ -270,9 +342,7 @@ export class CoinGeckoProvider extends BaseProvider {
     try {
       const response = await fetch(`${COINGECKO_BASE_URL}/ping`, {
         method: "GET",
-        headers: {
-          Accept: "application/json",
-        },
+        headers: this.buildHeaders(),
       });
       return response.ok;
     } catch {

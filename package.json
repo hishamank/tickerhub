@@ -1,6 +1,6 @@
 {
   "name": "tickerhub",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Provider-agnostic market data aggregation with SWR caching, health monitoring, rate limiting, and pluggable credential/cache/storage adapters.",
   "type": "module",
   "license": "MIT",

@@ -32,7 +32,9 @@ export interface ProviderMetadata {
   providerType: string;
   requiresKey: boolean;
   rateLimitPerMinute: number | null;
+  rateLimitPerHour: number | null;
   rateLimitPerDay: number | null;
+  rateLimitPerMonth: number | null;
   reliabilityScore: number;
   enabled: boolean;
   paidTier: boolean;
@@ -66,7 +68,9 @@ function buildBuiltinDefaults(): Map<string, ProviderMetadata> {
       providerType: builtin.providerType,
       requiresKey: builtin.requiresKey,
       rateLimitPerMinute: builtin.rateLimitPerMinute,
+      rateLimitPerHour: builtin.rateLimitPerHour,
       rateLimitPerDay: builtin.rateLimitPerDay,
+      rateLimitPerMonth: builtin.rateLimitPerMonth,
       reliabilityScore: builtin.reliabilityScore,
       enabled: true,
       paidTier: builtin.paidTier,
@@ -101,7 +105,9 @@ export class ProviderRegistry {
         providerType: row.providerType,
         requiresKey: row.requiresKey,
         rateLimitPerMinute: row.rateLimitPerMinute,
+        rateLimitPerHour: row.rateLimitPerHour,
         rateLimitPerDay: row.rateLimitPerDay,
+        rateLimitPerMonth: row.rateLimitPerMonth,
         reliabilityScore: row.reliabilityScore,
         enabled: row.enabled,
         paidTier: row.paidTier,

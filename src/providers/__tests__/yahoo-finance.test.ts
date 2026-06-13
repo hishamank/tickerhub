@@ -3,14 +3,16 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 // Mock the yahoo-finance2 library before importing the provider. The provider
 // instantiates the default export at module load, so the mock must supply a
 // class whose instances expose the methods we control.
-const { quoteFn, historicalFn } = vi.hoisted(() => ({
+const { quoteFn, historicalFn, quoteSummaryFn } = vi.hoisted(() => ({
   quoteFn: vi.fn(),
   historicalFn: vi.fn(),
+  quoteSummaryFn: vi.fn(),
 }));
 vi.mock("yahoo-finance2", () => ({
   default: class {
     quote = quoteFn;
     historical = historicalFn;
+    quoteSummary = quoteSummaryFn;
   },
 }));
 
@@ -20,6 +22,7 @@ describe("YahooFinanceProvider", () => {
   beforeEach(() => {
     quoteFn.mockReset();
     historicalFn.mockReset();
+    quoteSummaryFn.mockReset();
   });
 
   it("exposes correct metadata and needs no key", () => {
@@ -50,6 +53,34 @@ describe("YahooFinanceProvider", () => {
     await expect(new YahooFinanceProvider().fetchQuote("ZZZZ")).rejects.toThrow(
       /not found|invalid price/i,
     );
+  });
+
+  it("maps a company profile from quoteSummary modules", async () => {
+    quoteSummaryFn.mockResolvedValue({
+      assetProfile: {
+        longBusinessSummary: "Designs phones.",
+        sector: "Technology",
+        industry: "Consumer Electronics",
+        website: "https://apple.com",
+        country: "United States",
+        city: "Cupertino",
+        fullTimeEmployees: 161000,
+        companyOfficers: [{ name: "Tim Cook", title: "Chief Executive Officer" }],
+      },
+      price: {
+        longName: "Apple Inc.",
+        exchangeName: "NasdaqGS",
+        currency: "USD",
+        marketCap: 3_000_000_000_000,
+      },
+      defaultKeyStatistics: { sharesOutstanding: 15_000_000_000 },
+    });
+    const profile = await new YahooFinanceProvider().fetchProfile!("AAPL");
+    expect(profile?.name).toBe("Apple Inc.");
+    expect(profile?.sector).toBe("Technology");
+    expect(profile?.ceo).toBe("Tim Cook");
+    expect(profile?.employees).toBe(161000);
+    expect(profile?.marketCap).toBe(3_000_000_000_000);
   });
 
   it("maps historical prices", async () => {

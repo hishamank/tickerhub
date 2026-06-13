@@ -30,6 +30,15 @@ export type {
   OptionGreeks,
   OptionContract,
   OptionChain,
+  CompanyProfile,
+  NewsArticle,
+  IpoEvent,
+  SymbolSearchResult,
+  InsiderTransaction,
+  TechnicalIndicator,
+  MarketMover,
+  CryptoMarket,
+  ForexRate,
 } from './data.js';
 
 // Macro types

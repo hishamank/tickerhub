@@ -13,7 +13,7 @@
  * ```
  */
 
-export const VERSION = "0.1.0";
+export const VERSION = "0.2.0";
 
 // === Composition root ===
 export {
@@ -24,10 +24,15 @@ export {
 
 // === Service & aggregator ===
 export { ProviderAggregatorService } from "./services/provider-aggregator.service.js";
+export { CryptoService } from "./services/crypto.service.js";
+export { ForexService } from "./services/forex.service.js";
 export {
   SmartAggregator,
   type SmartAggregatorDeps,
 } from "./aggregator/smart-aggregator.js";
+export { CryptoAggregator } from "./aggregator/crypto-aggregator.js";
+export { ForexAggregator } from "./aggregator/forex-aggregator.js";
+export { ProviderQueryEngine } from "./aggregator/provider-query-engine.js";
 export {
   enrichWithCurrencyInfo,
   executeWithAdrFallback,
@@ -43,6 +48,9 @@ export type {
   ProviderConfigRecord,
   HealthMetricsStore,
   HealthMetricRecord,
+  RateLimitStore,
+  RateLimitWindow,
+  RateLimitWindowState,
 } from "./ports/index.js";
 
 // === Default adapters ===
@@ -60,6 +68,7 @@ export {
   type ProviderEnvMapping,
   InMemoryConfigStore,
   InMemoryHealthStore,
+  InMemoryRateLimitStore,
 } from "./adapters/index.js";
 
 // === Logging seam ===
@@ -136,11 +145,9 @@ export {
   RateLimitTracker,
   getRateLimitTracker,
   resetRateLimitTracker,
+  type RateLimits,
+  type RemainingBudget,
 } from "./rate-limiting/tracker.js";
-export {
-  getRateLimitConfig,
-  PROVIDER_RATE_LIMITS,
-} from "./rate-limiting/rate-limit-config.js";
 
 // === Resilience ===
 export {
@@ -190,6 +197,15 @@ export type {
   OptionGreeks,
   OptionContract,
   OptionChain,
+  CompanyProfile,
+  NewsArticle,
+  IpoEvent,
+  SymbolSearchResult,
+  InsiderTransaction,
+  TechnicalIndicator,
+  MarketMover,
+  CryptoMarket,
+  ForexRate,
   MacroIndicatorData,
   CacheEntry,
   SwrOptions,

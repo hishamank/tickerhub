@@ -10,7 +10,7 @@ import type {
   HealthMetricsStore,
   HealthMetricRecord,
 } from "../../ports/health-store.js";
-import { SQLITE_SCHEMA } from "./schema.js";
+import { ensureSchema } from "./schema.js";
 
 interface HealthRow {
   provider_name: string;
@@ -34,7 +34,7 @@ const toDate = (ms: number | null): Date | null =>
 
 export class SqliteHealthStore implements HealthMetricsStore {
   constructor(private readonly db: Database) {
-    this.db.exec(SQLITE_SCHEMA);
+    ensureSchema(this.db);
   }
 
   async insertHealthMetric(metric: HealthMetricRecord): Promise<void> {

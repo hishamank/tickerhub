@@ -20,9 +20,21 @@ import type {
   EarningsData,
   RatingData,
   HistoricalPrice,
+  CompanyProfile,
+  NewsArticle,
+  IpoEvent,
+  SymbolSearchResult,
+  InsiderTransaction,
   DataType,
   RateLimitConfig,
 } from "../types/index.js";
+import {
+  finnhubNews,
+  finnhubIpoCalendar,
+  finnhubSearch,
+  finnhubInsider,
+  type FinnhubGet,
+} from "./finnhub-extra.js";
 import { ProviderError, ProviderErrorCode } from "../types/provider.js";
 import {
   QuoteDataSchema,
@@ -30,6 +42,7 @@ import {
   EventDataSchema,
   EarningsDataSchema,
   RatingDataSchema,
+  CompanyProfileSchema,
   validateData,
 } from "../types/validation.js";
 import type {
@@ -40,6 +53,7 @@ import type {
   FinnhubRecommendation,
   FinnhubPriceTarget,
   FinnhubCandles,
+  FinnhubProfile,
 } from "./finnhub-types.js";
 import {
   mapFinnhubError,
@@ -49,6 +63,7 @@ import {
   mapEarnings,
   buildRating,
   mapCandles,
+  mapFinnhubProfile,
 } from "./finnhub-mappers.js";
 
 const logger = getLogger("finnhub", "provider-aggregator/providers");
@@ -67,12 +82,23 @@ export class FinnhubProvider extends BaseProvider {
     "earnings",
     "events",
     "ratings",
+    "profile",
+    "news",
+    "ipo",
+    "search",
+    "insider",
   ];
   readonly rateLimit: RateLimitConfig = {
     requestsPerMinute: 60, // Free tier limit
   };
 
   private apiKey: string;
+
+  /** Bound, generic HTTP getter handed to the extended-capability helpers. */
+  private readonly getter: FinnhubGet = <T,>(
+    path: string,
+    params: Record<string, string | number>,
+  ): Promise<T> => this.get<T>(path, params);
 
   constructor(credentials: Record<string, string> | null) {
     super();
@@ -264,6 +290,41 @@ export class FinnhubProvider extends BaseProvider {
     } catch (error) {
       return mapFinnhubError(error, `fetchHistoricalPrices(${symbol})`);
     }
+  }
+
+  async fetchProfile(symbol: string): Promise<CompanyProfile | null> {
+    this.validateSymbol(symbol);
+    try {
+      const profile = await this.get<FinnhubProfile>("/stock/profile2", {
+        symbol: symbol.toUpperCase(),
+      });
+      if (!profile || !profile.name) return null;
+      return validateData(
+        CompanyProfileSchema,
+        mapFinnhubProfile(profile, symbol),
+        `Finnhub profile for ${symbol}`,
+      );
+    } catch (error) {
+      return mapFinnhubError(error, `fetchProfile(${symbol})`);
+    }
+  }
+
+  fetchNews(symbol: string): Promise<NewsArticle[]> {
+    this.validateSymbol(symbol);
+    return finnhubNews(this.getter, symbol);
+  }
+
+  fetchIpoCalendar(): Promise<IpoEvent[]> {
+    return finnhubIpoCalendar(this.getter);
+  }
+
+  searchSymbols(query: string): Promise<SymbolSearchResult[]> {
+    return finnhubSearch(this.getter, query);
+  }
+
+  fetchInsiderTransactions(symbol: string): Promise<InsiderTransaction[]> {
+    this.validateSymbol(symbol);
+    return finnhubInsider(this.getter, symbol);
   }
 
   override async healthCheck(): Promise<boolean> {

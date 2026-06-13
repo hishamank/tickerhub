@@ -52,6 +52,36 @@ export const DEFAULT_PROVIDER_PRIORITIES: Record<DataType, string[]> = {
 
   // Macro (economic indicators): Nasdaq Data Link provides FRED data
   macro: ["nasdaq-data-link"],
+
+  // Profile (company fundamentals): Yahoo keyless, Finnhub/FMP detailed
+  profile: ["yahoo-finance", "finnhub", "fmp"],
+
+  // News: Finnhub + FMP company news on free tiers
+  news: ["finnhub", "fmp"],
+
+  // IPO calendar
+  ipo: ["finnhub", "fmp"],
+
+  // Symbol search / lookup
+  search: ["finnhub", "fmp"],
+
+  // Insider transactions
+  insider: ["finnhub", "fmp"],
+
+  // Technical indicators: Alpha Vantage has the broadest free TA suite
+  technicals: ["alpha-vantage"],
+
+  // Market movers (gainers/losers/actives)
+  movers: ["fmp"],
+
+  // Crypto (asset-class namespace): CoinGecko is the keyless leader
+  crypto_quote: ["coingecko"],
+  crypto_historical: ["coingecko"],
+  crypto_markets: ["coingecko"],
+
+  // Forex (asset-class namespace)
+  forex_rate: ["alpha-vantage", "fmp"],
+  forex_historical: ["alpha-vantage"],
 };
 
 /**
@@ -90,7 +120,9 @@ export interface BuiltinProviderMeta {
   paidTier: boolean;
   supportedDataTypes: DataType[];
   rateLimitPerMinute: number | null;
+  rateLimitPerHour: number | null;
   rateLimitPerDay: number | null;
+  rateLimitPerMonth: number | null;
 }
 
 export const BUILTIN_PROVIDERS: BuiltinProviderMeta[] = [
@@ -100,9 +132,11 @@ export const BUILTIN_PROVIDERS: BuiltinProviderMeta[] = [
     requiresKey: false,
     reliabilityScore: 4.5,
     paidTier: false,
-    supportedDataTypes: ["prices", "dividends", "earnings", "events"],
+    supportedDataTypes: ["prices", "dividends", "earnings", "events", "profile"],
     rateLimitPerMinute: null,
+    rateLimitPerHour: null,
     rateLimitPerDay: null,
+    rateLimitPerMonth: null,
   },
   {
     name: "finnhub",
@@ -110,9 +144,21 @@ export const BUILTIN_PROVIDERS: BuiltinProviderMeta[] = [
     requiresKey: true,
     reliabilityScore: 4.0,
     paidTier: false,
-    supportedDataTypes: ["prices", "dividends", "earnings", "ratings"],
+    supportedDataTypes: [
+      "prices",
+      "dividends",
+      "earnings",
+      "ratings",
+      "profile",
+      "news",
+      "ipo",
+      "search",
+      "insider",
+    ],
     rateLimitPerMinute: 60,
+    rateLimitPerHour: null,
     rateLimitPerDay: null,
+    rateLimitPerMonth: null,
   },
   {
     name: "fmp",
@@ -120,9 +166,24 @@ export const BUILTIN_PROVIDERS: BuiltinProviderMeta[] = [
     requiresKey: true,
     reliabilityScore: 3.5,
     paidTier: false,
-    supportedDataTypes: ["prices", "dividends", "earnings", "ratings", "events"],
+    supportedDataTypes: [
+      "prices",
+      "dividends",
+      "earnings",
+      "ratings",
+      "events",
+      "profile",
+      "news",
+      "ipo",
+      "search",
+      "insider",
+      "movers",
+      "forex_rate",
+    ],
     rateLimitPerMinute: null,
+    rateLimitPerHour: null,
     rateLimitPerDay: 250,
+    rateLimitPerMonth: null,
   },
   {
     name: "tiingo",
@@ -132,7 +193,9 @@ export const BUILTIN_PROVIDERS: BuiltinProviderMeta[] = [
     paidTier: false,
     supportedDataTypes: ["prices", "dividends"],
     rateLimitPerMinute: null,
+    rateLimitPerHour: 50,
     rateLimitPerDay: 1000,
+    rateLimitPerMonth: null,
   },
   {
     name: "polygon",
@@ -142,7 +205,9 @@ export const BUILTIN_PROVIDERS: BuiltinProviderMeta[] = [
     paidTier: false,
     supportedDataTypes: ["prices", "dividends", "events"],
     rateLimitPerMinute: 5,
+    rateLimitPerHour: null,
     rateLimitPerDay: null,
+    rateLimitPerMonth: null,
   },
   {
     name: "alpha-vantage",
@@ -150,9 +215,18 @@ export const BUILTIN_PROVIDERS: BuiltinProviderMeta[] = [
     requiresKey: true,
     reliabilityScore: 3.0,
     paidTier: false,
-    supportedDataTypes: ["prices", "dividends", "earnings"],
+    supportedDataTypes: [
+      "prices",
+      "dividends",
+      "earnings",
+      "technicals",
+      "forex_rate",
+      "forex_historical",
+    ],
     rateLimitPerMinute: 5,
-    rateLimitPerDay: 500,
+    rateLimitPerHour: null,
+    rateLimitPerDay: 25, // Free tier dropped from 500 → 100 → 25/day (2023–2024)
+    rateLimitPerMonth: null,
   },
   {
     name: "twelve-data",
@@ -162,7 +236,9 @@ export const BUILTIN_PROVIDERS: BuiltinProviderMeta[] = [
     paidTier: false,
     supportedDataTypes: ["prices"],
     rateLimitPerMinute: 8,
+    rateLimitPerHour: null,
     rateLimitPerDay: 800,
+    rateLimitPerMonth: null,
   },
   {
     name: "alpaca",
@@ -172,7 +248,9 @@ export const BUILTIN_PROVIDERS: BuiltinProviderMeta[] = [
     paidTier: false,
     supportedDataTypes: ["prices"],
     rateLimitPerMinute: 200,
+    rateLimitPerHour: null,
     rateLimitPerDay: null,
+    rateLimitPerMonth: null,
   },
   {
     name: "tradier",
@@ -182,7 +260,9 @@ export const BUILTIN_PROVIDERS: BuiltinProviderMeta[] = [
     paidTier: false,
     supportedDataTypes: ["options"],
     rateLimitPerMinute: 120,
+    rateLimitPerHour: null,
     rateLimitPerDay: null,
+    rateLimitPerMonth: null,
   },
   {
     name: "nasdaq-data-link",
@@ -192,7 +272,9 @@ export const BUILTIN_PROVIDERS: BuiltinProviderMeta[] = [
     paidTier: false,
     supportedDataTypes: ["macro"],
     rateLimitPerMinute: null,
-    rateLimitPerDay: 50,
+    rateLimitPerHour: null,
+    rateLimitPerDay: 50000, // Authenticated free key: 50k/day (50/day is keyless)
+    rateLimitPerMonth: null,
   },
   {
     name: "marketstack",
@@ -202,7 +284,9 @@ export const BUILTIN_PROVIDERS: BuiltinProviderMeta[] = [
     paidTier: false,
     supportedDataTypes: ["prices"],
     rateLimitPerMinute: null,
-    rateLimitPerDay: 100,
+    rateLimitPerHour: null,
+    rateLimitPerDay: null,
+    rateLimitPerMonth: 100, // Free tier: 100 requests/month, EOD only
   },
   {
     name: "coingecko",
@@ -210,8 +294,15 @@ export const BUILTIN_PROVIDERS: BuiltinProviderMeta[] = [
     requiresKey: false,
     reliabilityScore: 4.0,
     paidTier: false,
-    supportedDataTypes: ["prices"],
+    supportedDataTypes: [
+      "prices",
+      "crypto_quote",
+      "crypto_historical",
+      "crypto_markets",
+    ],
     rateLimitPerMinute: 30,
+    rateLimitPerHour: null,
     rateLimitPerDay: null,
+    rateLimitPerMonth: 10000, // Demo key: ~10k calls/month
   },
 ];

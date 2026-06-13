@@ -11,8 +11,10 @@ import type { Cache } from "./ports/cache.js";
 import type { CredentialProvider } from "./ports/credential-provider.js";
 import type { ConfigStore } from "./ports/config-store.js";
 import type { HealthMetricsStore } from "./ports/health-store.js";
+import type { RateLimitStore } from "./ports/rate-limit-store.js";
 
 import { setLoggerFactory } from "./logging/index.js";
+import { RateLimitTracker } from "./rate-limiting/tracker.js";
 import { InMemoryCache } from "./adapters/cache/in-memory-cache.js";
 import {
   EnvCredentialProvider,
@@ -40,6 +42,12 @@ export interface CreateAggregatorOptions {
   configStore?: ConfigStore;
   /** Health-metrics store. Default: in-memory ring buffer. */
   healthStore?: HealthMetricsStore;
+  /**
+   * Rate-limit usage store. Default: in-memory (resets per process). Supply a
+   * SqliteRateLimitStore (from `/sqlite`) so daily/monthly budgets persist
+   * across restarts.
+   */
+  rateLimitStore?: RateLimitStore;
   /**
    * Environment record for the default EnvCredentialProvider. Ignored if
    * `credentials` is supplied. Default: `process.env`.
@@ -93,6 +101,9 @@ export function createAggregator(
     registry,
     credentials,
     healthMonitor,
+    ...(options.rateLimitStore
+      ? { rateLimitTracker: new RateLimitTracker(options.rateLimitStore) }
+      : {}),
     ...(options.logger ? { logger: options.logger } : {}),
   });
   const swrCache = new SwrCache(cache, options.logger);

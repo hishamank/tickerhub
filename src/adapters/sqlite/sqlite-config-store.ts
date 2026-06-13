@@ -11,14 +11,16 @@ import type {
   ConfigStore,
   ProviderConfigRecord,
 } from "../../ports/config-store.js";
-import { SQLITE_SCHEMA } from "./schema.js";
+import { ensureSchema } from "./schema.js";
 
 interface ConfigRow {
   name: string;
   provider_type: string;
   requires_key: number;
   rate_limit_per_minute: number | null;
+  rate_limit_per_hour: number | null;
   rate_limit_per_day: number | null;
+  rate_limit_per_month: number | null;
   reliability_score: number;
   enabled: number;
   paid_tier: number;
@@ -28,7 +30,7 @@ interface ConfigRow {
 
 export class SqliteConfigStore implements ConfigStore {
   constructor(private readonly db: Database) {
-    this.db.exec(SQLITE_SCHEMA);
+    ensureSchema(this.db);
   }
 
   async getAllConfigs(): Promise<ProviderConfigRecord[]> {
@@ -41,7 +43,9 @@ export class SqliteConfigStore implements ConfigStore {
       providerType: row.provider_type,
       requiresKey: row.requires_key === 1,
       rateLimitPerMinute: row.rate_limit_per_minute,
+      rateLimitPerHour: row.rate_limit_per_hour,
       rateLimitPerDay: row.rate_limit_per_day,
+      rateLimitPerMonth: row.rate_limit_per_month,
       reliabilityScore: row.reliability_score,
       enabled: row.enabled === 1,
       paidTier: row.paid_tier === 1,
@@ -56,16 +60,18 @@ export class SqliteConfigStore implements ConfigStore {
       .prepare(
         `INSERT OR REPLACE INTO provider_configs
          (name, provider_type, requires_key, rate_limit_per_minute,
-          rate_limit_per_day, reliability_score, enabled, paid_tier,
-          supported_data_types, priority)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          rate_limit_per_hour, rate_limit_per_day, rate_limit_per_month,
+          reliability_score, enabled, paid_tier, supported_data_types, priority)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       )
       .run(
         config.name,
         config.providerType,
         config.requiresKey ? 1 : 0,
         config.rateLimitPerMinute,
+        config.rateLimitPerHour,
         config.rateLimitPerDay,
+        config.rateLimitPerMonth,
         config.reliabilityScore,
         config.enabled ? 1 : 0,
         config.paidTier ? 1 : 0,

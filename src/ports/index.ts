@@ -6,3 +6,8 @@ export type {
 } from "./credential-provider.js";
 export type { ConfigStore, ProviderConfigRecord } from "./config-store.js";
 export type { HealthMetricsStore, HealthMetricRecord } from "./health-store.js";
+export type {
+  RateLimitStore,
+  RateLimitWindow,
+  RateLimitWindowState,
+} from "./rate-limit-store.js";
