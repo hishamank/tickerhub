@@ -12,7 +12,7 @@ import { ValidationError } from "../errors/index.js";
  * Quote Data Schema
  */
 export const QuoteDataSchema = z.object({
-  symbol: z.string().min(1).max(10),
+  symbol: z.string().min(1).max(15),
   price: z.number().positive(),
   open: z.number().positive().optional(),
   high: z.number().positive().optional(),

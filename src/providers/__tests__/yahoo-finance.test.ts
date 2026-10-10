@@ -16,6 +16,7 @@ vi.mock("yahoo-finance2", () => ({
   },
 }));
 
+import { ProviderErrorCode } from "../../types/provider.js";
 import { YahooFinanceProvider } from "../yahoo-finance.js";
 
 describe("YahooFinanceProvider", () => {
@@ -47,6 +48,53 @@ describe("YahooFinanceProvider", () => {
     expect(q.price).toBe(150);
     expect(q.volume).toBe(1000);
   });
+
+  it.each([
+    "^GSPC", "^VIX", "AED=X", "GC=F",
+    "^gspc", "^vix", "aed=x", "gc=f", "123456789012345",
+  ])("fetches a mocked quote for %s through validation and mapping", async (symbol) => {
+    quoteFn.mockResolvedValue({
+      regularMarketPrice: 123,
+      regularMarketTime: new Date(0),
+      currency: "USD",
+    });
+    const quote = await new YahooFinanceProvider().fetchQuote(symbol);
+    expect(quoteFn).toHaveBeenCalledTimes(1);
+    expect(quoteFn).toHaveBeenCalledWith(symbol.toUpperCase());
+    expect(quote).toMatchObject({
+      symbol: symbol.toUpperCase(), price: 123, timestamp: new Date(0),
+    });
+  });
+
+  it("rejects a 16-character symbol before calling Yahoo", async () => {
+    await expect(new YahooFinanceProvider().fetchQuote("1234567890123456"))
+      .rejects.toMatchObject({ code: ProviderErrorCode.INVALID_REQUEST, retryable: false });
+    expect(quoteFn).not.toHaveBeenCalled();
+  });
+
+  it.each(Array.from({ length: 12 }, (_, month) => month))(
+    "maps earnings in month %i to an integer fiscal quarter and preserves EPS fields",
+    async (month) => {
+      const date = new Date(2024, month, 15);
+      quoteSummaryFn.mockResolvedValue({
+        earningsHistory: { history: [{
+          quarter: date, epsEstimate: 0, epsActual: 1.25,
+          epsDifference: 1.25, surprisePercent: 0,
+        }] },
+      });
+      const earnings = await new YahooFinanceProvider().fetchEarnings("aapl");
+      expect(quoteSummaryFn).toHaveBeenCalledTimes(1);
+      expect(quoteSummaryFn).toHaveBeenCalledWith("AAPL", {
+        modules: ["earningsHistory", "earningsTrend"],
+      });
+      expect(earnings).toEqual([{
+        date, fiscalQuarter: ["Q1", "Q2", "Q3", "Q4"][Math.floor(month / 3)],
+        fiscalYear: 2024, estimate: 0, actual: 1.25,
+        surprise: 1.25, surprisePercent: 0,
+      }]);
+      expect(earnings[0]?.fiscalQuarter).toMatch(/^Q[1-4]$/);
+    },
+  );
 
   it("throws SYMBOL_NOT_FOUND when the price is invalid", async () => {
     quoteFn.mockResolvedValue({ regularMarketPrice: null });

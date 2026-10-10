@@ -11,6 +11,7 @@
 
 import { getLogger } from "../logging/index.js";
 import { ConfigurationError } from "../errors/index.js";
+import { validateSymbol } from "./provider-utils.js";
 import { BaseProvider } from "./base-provider.js";
 import type {
   QuoteData,
@@ -18,7 +19,7 @@ import type {
   DataType,
   RateLimitConfig,
 } from "../types/index.js";
-import { ProviderError, ProviderErrorCode } from "../types/provider.js";
+import { ProviderError } from "../types/provider.js";
 import { QuoteDataSchema, validateData } from "../types/validation.js";
 import type {
   TwelveDataQuoteResponse,
@@ -56,29 +57,9 @@ export class TwelveDataProvider extends BaseProvider {
   }
 
   protected override validateSymbol(symbol: string): void {
-    if (!symbol || symbol.trim().length === 0) {
-      throw new ProviderError(
-        ProviderErrorCode.INVALID_REQUEST,
-        "Symbol cannot be empty",
-        false,
-      );
-    }
-
-    if (symbol.length > 10) {
-      throw new ProviderError(
-        ProviderErrorCode.INVALID_REQUEST,
-        "Symbol too long (max 10 characters)",
-        false,
-      );
-    }
-
-    if (!/^[A-Z0-9./-]+$/i.test(symbol)) {
-      throw new ProviderError(
-        ProviderErrorCode.INVALID_REQUEST,
-        "Symbol contains invalid characters",
-        false,
-      );
-    }
+    // Twelve Data uses slash-delimited pairs; retain the shared length and
+    // error handling while allowing that one additional character.
+    validateSymbol(symbol, { allowSlash: true });
   }
 
   async fetchQuote(symbol: string): Promise<QuoteData | null> {

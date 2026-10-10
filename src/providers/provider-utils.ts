@@ -6,8 +6,23 @@
 
 import { ProviderError, ProviderErrorCode } from "../types/provider.js";
 
-/** Basic symbol-format validation. Throws ProviderError on invalid input. */
-export function validateSymbol(symbol: string): void {
+/**
+ * Basic symbol-format validation. Throws ProviderError on invalid input.
+ *
+ * The charset covers the symbol styles providers actually use: plain US
+ * tickers (AAPL), exchange-suffixed internationals (NOVO-B.CO, DFM.AE),
+ * Yahoo-style indices and FX/futures (^GSPC, ^VIX, AED=X, GC=F), and
+ * crypto pair forms (BTC-USD). 15 characters is the sane ceiling across
+ * those styles.
+ */
+const SYMBOL_PATTERN = /^[A-Z0-9.\-=^]+$/i;
+const PAIR_SYMBOL_PATTERN = /^[A-Z0-9./=^-]+$/i;
+const MAX_SYMBOL_LENGTH = 15;
+
+export function validateSymbol(
+  symbol: string,
+  options: { allowSlash?: boolean } = {},
+): void {
   if (!symbol || symbol.trim().length === 0) {
     throw new ProviderError(
       ProviderErrorCode.INVALID_REQUEST,
@@ -15,14 +30,15 @@ export function validateSymbol(symbol: string): void {
       false,
     );
   }
-  if (symbol.length > 10) {
+  if (symbol.length > MAX_SYMBOL_LENGTH) {
     throw new ProviderError(
       ProviderErrorCode.INVALID_REQUEST,
-      "Symbol too long (max 10 characters)",
+      `Symbol too long (max ${MAX_SYMBOL_LENGTH} characters)`,
       false,
     );
   }
-  if (!/^[A-Z0-9.-]+$/i.test(symbol)) {
+  const pattern = options.allowSlash ? PAIR_SYMBOL_PATTERN : SYMBOL_PATTERN;
+  if (!pattern.test(symbol)) {
     throw new ProviderError(
       ProviderErrorCode.INVALID_REQUEST,
       "Symbol contains invalid characters",
