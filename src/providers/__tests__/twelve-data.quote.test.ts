@@ -25,6 +25,35 @@ describe("TwelveDataProvider — fetchQuote", () => {
     vi.restoreAllMocks();
   });
 
+  it.each(["^GSPC", "^VIX", "AED=X", "GC=F", "btc/usd", "123456789012345"])(
+    "accepts %s and preserves the request symbol",
+    async (symbol) => {
+      fetchSpy.mockResolvedValueOnce(mockResponse({ ...stockQuoteResponse, symbol }));
+      const quote = await provider.fetchQuote(symbol);
+      expect(quote?.symbol).toBe(symbol);
+      expect(fetchSpy).toHaveBeenCalledWith(
+        expect.stringContaining(`symbol=${encodeURIComponent(symbol)}&`),
+      );
+    },
+  );
+
+  it.each([":", ";", "<", ">", "@", "_", "?", "&", "\\", " "])(
+    "rejects punctuation %j before fetching",
+    async (character) => {
+      await expect(provider.fetchQuote(`AA${character}PL`)).rejects.toMatchObject({
+        code: ProviderErrorCode.INVALID_REQUEST, retryable: false,
+      });
+      expect(fetchSpy).not.toHaveBeenCalled();
+    },
+  );
+
+  it("rejects 16 characters before fetching", async () => {
+    await expect(provider.fetchQuote("1234567890123456")).rejects.toMatchObject({
+      code: ProviderErrorCode.INVALID_REQUEST, retryable: false,
+    });
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
   it("should parse a valid stock quote response", async () => {
     fetchSpy.mockResolvedValueOnce(mockResponse(stockQuoteResponse));
 

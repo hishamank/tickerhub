@@ -202,7 +202,7 @@ export class YahooFinanceProvider extends BaseProvider {
           if (item.quarter && item.epsActual !== undefined) {
             earnings.push({
               date: new Date(item.quarter),
-              fiscalQuarter: `Q${item.quarter.getMonth() / 3 + 1}`,
+              fiscalQuarter: `Q${Math.floor(item.quarter.getMonth() / 3) + 1}`,
               fiscalYear: item.quarter.getFullYear(),
               ...(item.epsEstimate !== undefined &&
                 item.epsEstimate !== null && { estimate: item.epsEstimate }),

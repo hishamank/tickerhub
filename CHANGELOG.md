@@ -6,6 +6,15 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+
+- Accept Yahoo index, FX, and futures symbols (`^GSPC`, `^VIX`, `AED=X`,
+  `GC=F`) and symbols up to 15 characters in shared validation and quote data.
+- Reuse shared validation for Twelve Data while preserving slash-delimited
+  pairs and rejecting unsupported punctuation.
+- Map Yahoo earnings history months to integer fiscal quarters (`Q1`–`Q4`)
+  while preserving the original EPS fields.
+
 ## [0.2.0] - 2026-06-12
 
 Free-tier correctness pass plus a large coverage expansion: more normalized data
