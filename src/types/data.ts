@@ -29,6 +29,12 @@ export interface QuoteData {
   nativeCurrency?: string | undefined;
   /** FX rate used for conversion (native → USD) */
   fxRate?: number | undefined;
+  /** Set when `price` is a completed session's close rather than a live price. */
+  priceBasis?: "end_of_day" | undefined;
+  /** Trading date (YYYY-MM-DD) that an end-of-day `price` belongs to. */
+  asOfDate?: string | undefined;
+  /** Upstream endpoint that supplied a fallback quote. */
+  fallbackSource?: string | undefined;
 
   // ── Extended hours ─────────────────────────────────────────────────
   /** Premarket price (available from Yahoo Finance during pre-market session) */

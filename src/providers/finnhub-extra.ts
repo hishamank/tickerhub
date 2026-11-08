@@ -19,11 +19,14 @@ import {
   validateData,
 } from "../types/validation.js";
 import { mapFinnhubError } from "./finnhub-mappers.js";
+import { isEntitlementDenied } from "./provider-utils.js";
+import { RequestBudgetExhaustedError } from "../resilience/request-budget.js";
 import type {
   FinnhubNews,
   FinnhubIpoResponse,
   FinnhubSearchResponse,
   FinnhubInsiderResponse,
+  FinnhubPriceTarget,
 } from "./finnhub-types.js";
 
 /** The provider's bound HTTP getter. */
@@ -33,6 +36,28 @@ export type FinnhubGet = <T>(
 ) => Promise<T>;
 
 const ymd = (d: Date): string => d.toISOString().split("T")[0]!;
+
+/**
+ * Price targets are a premium add-on to the free recommendation data, so a
+ * plan denial, or no local quota left to ask, just omits them. Every other
+ * failure still propagates.
+ */
+export async function finnhubOptionalPriceTarget(
+  get: FinnhubGet,
+  symbol: string,
+): Promise<FinnhubPriceTarget | undefined> {
+  try {
+    return await get<FinnhubPriceTarget>("/stock/price-target", { symbol });
+  } catch (error) {
+    if (
+      isEntitlementDenied(error) ||
+      error instanceof RequestBudgetExhaustedError
+    ) {
+      return undefined;
+    }
+    throw error;
+  }
+}
 
 export async function finnhubNews(
   get: FinnhubGet,

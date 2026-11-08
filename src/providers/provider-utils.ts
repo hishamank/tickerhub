@@ -47,33 +47,84 @@ export function validateSymbol(
   }
 }
 
+/** True for a plan denial: valid credentials, data outside the subscription. */
+export function isEntitlementDenied(error: unknown): boolean {
+  return (
+    error instanceof ProviderError &&
+    error.code === ProviderErrorCode.ENTITLEMENT_REQUIRED
+  );
+}
+
+const SECRET_QUERY_PARAM =
+  /\b(api[_-]?key|token|access[_-]?key|secret)=[^&\s"'<>]+/gi;
+
+/**
+ * Remove credentials from text bound for errors, logs or health records:
+ * key-bearing query parameters, plus any literal `secrets` an upstream echoed.
+ */
+export function sanitizeSecrets(
+  text: string,
+  secrets: readonly string[] = [],
+): string {
+  let sanitized = text.replace(SECRET_QUERY_PARAM, "$1=[REDACTED]");
+  for (const secret of secrets) {
+    if (secret) sanitized = sanitized.split(secret).join("[REDACTED]");
+  }
+  return sanitized;
+}
+
+const MAX_CAUSE_DEPTH = 3;
+
+/**
+ * A log-safe summary of a caught value: sanitized name, message and causes
+ * only. The raw object must not be logged, as its other fields can hold keys.
+ */
+export function describeCaughtError(
+  error: unknown,
+  secrets: readonly string[] = [],
+): string {
+  const parts: string[] = [];
+  let current = error;
+  while (current !== undefined && parts.length <= MAX_CAUSE_DEPTH) {
+    parts.push(
+      current instanceof Error
+        ? `${current.name}: ${current.message}`
+        : String(current),
+    );
+    current = current instanceof Error ? current.cause : undefined;
+  }
+  return sanitizeSecrets(parts.join(" <- "), secrets);
+}
+
 /** Convert an HTTP/network error into a ProviderError. Never returns. */
-export function handleHttpError(error: unknown, context: string): never {
+export function handleHttpError(
+  error: unknown,
+  context: string,
+  secrets: readonly string[] = [],
+): never {
   if (error instanceof ProviderError) {
     throw error;
   }
 
   if (error instanceof Error) {
-    if (
-      error.message.includes("ECONNREFUSED") ||
-      error.message.includes("ETIMEDOUT")
-    ) {
+    const message = sanitizeSecrets(error.message, secrets);
+    if (message.includes("ECONNREFUSED") || message.includes("ETIMEDOUT")) {
       throw new ProviderError(
         ProviderErrorCode.NETWORK_ERROR,
-        `Network error in ${context}: ${error.message}`,
+        `Network error in ${context}: ${message}`,
         true,
       );
     }
-    if (error.message.includes("timeout")) {
+    if (message.includes("timeout")) {
       throw new ProviderError(
         ProviderErrorCode.TIMEOUT,
-        `Timeout in ${context}: ${error.message}`,
+        `Timeout in ${context}: ${message}`,
         true,
       );
     }
     throw new ProviderError(
       ProviderErrorCode.PROVIDER_ERROR,
-      `Error in ${context}: ${error.message}`,
+      `Error in ${context}: ${message}`,
       true,
     );
   }

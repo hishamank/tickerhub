@@ -149,14 +149,17 @@ export class TwelveDataProvider extends BaseProvider {
         return [];
       }
 
-      return data.values.map((item) => ({
-        date: item.datetime,
-        open: parseFloat(item.open),
-        high: parseFloat(item.high),
-        low: parseFloat(item.low),
-        close: parseFloat(item.close),
-        volume: parseInt(item.volume, 10) || undefined,
-      }));
+      // Twelve Data answers newest-first; the domain contract is oldest-first.
+      return data.values
+        .map((item) => ({
+          date: item.datetime,
+          open: parseFloat(item.open),
+          high: parseFloat(item.high),
+          low: parseFloat(item.low),
+          close: parseFloat(item.close),
+          volume: parseInt(item.volume, 10) || undefined,
+        }))
+        .sort((a, b) => a.date.localeCompare(b.date));
     } catch (error) {
       if (error instanceof ProviderError) {
         throw error;

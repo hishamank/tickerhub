@@ -79,6 +79,32 @@ the tracker can't actually protect them. `RateLimitConfig` already declares
 `requestsPerHour` / `monthlyLimit` / `burstLimit` — but the registry and tracker
 ignore them.
 
+## Plan denials and degraded data
+
+- **FMP** is called only through its `/stable` API; the legacy `/api/v3` and
+  `/api/v4` paths answer 403 for newer accounts. A 402/403 raises
+  `ENTITLEMENT_REQUIRED` with FMP's message, and the aggregator falls back.
+  When an earnings row has no `fiscalYear`, the field falls back to the report
+  date's calendar year. That is an approximation: it is wrong for non-calendar
+  fiscal years and for results reported after the fiscal year ends.
+- **Finnhub** price targets are premium. On a 403, or with no local quota left
+  for the second request, the free recommendation data is still returned without
+  target prices.
+- **Polygon** snapshots can be outside a plan. On a 403 the quote falls back to
+  `/v2/aggs/ticker/{T}/prev`: end-of-day data, labelled `priceBasis:
+  "end_of_day"` with its `asOfDate` and `fallbackSource`, and carrying no
+  previous-close or change figures. A 401 means a bad key and never falls back.
+
+## Quota accounting
+
+FMP, Finnhub and Polygon spend one unit per HTTP request, so a Polygon quote that
+falls back spends two and a Finnhub rating with a price target spends two. Failed
+requests count. The quota is checked before each request, so a fallback that
+would exceed it is never sent, and work that sends no request costs nothing.
+
+Other providers count one unit per call, including failed calls, however many
+requests that call makes. Calls rejected as invalid are not counted.
+
 ## Recommended taxonomy extensions
 
 Given the "extend the fixed taxonomy" decision, these new `DataType`s are

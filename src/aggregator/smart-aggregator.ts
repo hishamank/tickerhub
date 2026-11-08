@@ -29,6 +29,7 @@ import type {
 } from "../types/index.js";
 import type { Logger } from "../ports/logger.js";
 import type { CredentialProvider } from "../ports/credential-provider.js";
+import type { HealthMetricsStore } from "../ports/health-store.js";
 import { ProviderRegistry } from "../config/provider-registry.js";
 import { HealthMonitor } from "../health/health-monitor.js";
 import { RateLimitTracker } from "../rate-limiting/tracker.js";
@@ -47,6 +48,8 @@ export interface SmartAggregatorDeps {
   logger?: Logger;
   rateLimitTracker?: RateLimitTracker;
   healthMonitor?: HealthMonitor;
+  /** When set, every real provider attempt is persisted here as it happens. */
+  healthStore?: HealthMetricsStore;
 }
 
 export class SmartAggregator {
@@ -67,6 +70,7 @@ export class SmartAggregator {
       deps.healthMonitor ?? new HealthMonitor(),
       deps.rateLimitTracker ?? new RateLimitTracker(),
       this.logger,
+      deps.healthStore,
     );
     this.engine = new ProviderQueryEngine(
       this.registry,
@@ -93,7 +97,7 @@ export class SmartAggregator {
     return executeWithAdrFallback<T[]>(
       symbol,
       userId,
-      async (sym, uid) => (await this.engine.tryProviders(dataType, sym, uid, pick)) ?? [],
+      (sym, uid) => this.engine.tryProvidersList<T>(dataType, sym, uid, pick),
       (result) => result.length === 0,
       [],
     );

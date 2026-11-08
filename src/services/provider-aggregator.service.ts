@@ -8,6 +8,7 @@
 
 import type { SwrCache } from "../cache/swr-cache.js";
 import type { SmartAggregator } from "../aggregator/smart-aggregator.js";
+import type { ProviderHealthSnapshot } from "../aggregator/provider-executor.js";
 import { CryptoService } from "./crypto.service.js";
 import { ForexService } from "./forex.service.js";
 import type {
@@ -304,11 +305,7 @@ export class ProviderAggregatorService {
   }
 
   /** Get provider health status. */
-  getProviderHealth(providerId: string): {
-    status: "enabled" | "degraded" | "disabled";
-    successRate: number;
-    avgLatency: number;
-  } {
+  getProviderHealth(providerId: string): ProviderHealthSnapshot {
     return this.aggregator.getProviderHealth(providerId);
   }
 

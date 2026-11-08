@@ -216,4 +216,5 @@ export type {
   ProviderReliabilityScores,
 } from "./types/index.js";
 export { ProviderErrorCode, ProviderError } from "./types/provider.js";
+export type { ProviderHealthSnapshot } from "./aggregator/provider-executor.js";
 export { MacroIndicatorDataSchema } from "./types/macro.js";

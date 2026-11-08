@@ -12,8 +12,18 @@ import type { DataType, MarketDataProvider } from "../types/index.js";
 import type { Logger } from "../ports/logger.js";
 import type { CredentialProvider } from "../ports/credential-provider.js";
 import { ProviderFactory } from "../providers/provider-factory.js";
+import { sanitizeSecrets } from "../providers/provider-utils.js";
+import { reportProviderFailure } from "../resilience/attempt-report.js";
 import { TradierProvider } from "../providers/tradier.js";
-import { ProviderRegistry } from "../config/provider-registry.js";
+import {
+  RequestBudgetExhaustedError,
+  withRequestBudget,
+} from "../resilience/request-budget.js";
+import {
+  ProviderRegistry,
+  type ProviderMetadata,
+} from "../config/provider-registry.js";
+import { ProviderError, ProviderErrorCode } from "../types/provider.js";
 import { ProviderExecutor } from "./provider-executor.js";
 
 export class ProviderQueryEngine {
@@ -39,7 +49,7 @@ export class ProviderQueryEngine {
   /**
    * Try every provider that supports `dataType`, in priority order: resolve
    * credentials, skip if a required key is missing or the quota is exhausted,
-   * execute through the breaker, record the call, and return the first
+   * execute through the breaker with quota accounting, and return the first
    * non-null result.
    */
   async tryProviders<T>(
@@ -57,7 +67,7 @@ export class ProviderQueryEngine {
       const credentials = await this.credentials.resolve(meta.name, userId);
       if (!credentials && meta.requiresKey) continue;
 
-      const provider =
+      const provider: MarketDataProvider | null =
         meta.name === "tradier"
           ? new TradierProvider(credentials)
           : ProviderFactory.create(meta.name, credentials);
@@ -70,19 +80,71 @@ export class ProviderQueryEngine {
       }
 
       try {
+        // Inside the breaker's operation, so an open circuit spends nothing.
         const result = await this.executor.execute(provider.name, () =>
-          fetcher(symbol),
+          provider.meteredPerHttpRequest
+            ? withRequestBudget(
+                () => this.claimRequest(credentials, provider.name, meta),
+                () => fetcher(symbol),
+              )
+            : this.countLogicalCall(credentials, provider.name, meta, () =>
+                fetcher(symbol),
+              ),
         );
-        this.executor.recordRateLimit(credentials, provider.name, meta);
         if (accept(result)) return result;
       } catch (error) {
-        this.logger.warn(
-          `Failed to fetch ${dataType} from ${provider.name}:`,
-          error,
+        const message = sanitizeSecrets(
+          error instanceof Error ? error.message : String(error),
+          Object.values(credentials ?? {}),
         );
+        this.logger.warn(
+          `Failed to fetch ${dataType} from ${provider.name}: ${message}`,
+        );
+        reportProviderFailure(`${provider.name} (${dataType}): ${message}`);
       }
     }
     return null;
+  }
+
+  /**
+   * Check and record in one synchronous step, immediately before a real HTTP
+   * request, so concurrent attempts cannot both take the last unit.
+   */
+  private claimRequest(
+    credentials: Record<string, string> | null,
+    providerName: string,
+    meta: ProviderMetadata,
+  ): void {
+    if (this.executor.isRateLimited(credentials, providerName, meta)) {
+      throw new RequestBudgetExhaustedError(providerName);
+    }
+    this.executor.recordRateLimit(credentials, providerName, meta);
+  }
+
+  /**
+   * Accounting for providers that do not report their HTTP requests: one unit
+   * per call, including failed ones. A call rejected as invalid is not counted,
+   * since symbol validation throws that before any request is sent.
+   */
+  private async countLogicalCall<T>(
+    credentials: Record<string, string> | null,
+    providerName: string,
+    meta: ProviderMetadata,
+    call: () => Promise<T>,
+  ): Promise<T> {
+    try {
+      const result = await call();
+      this.executor.recordRateLimit(credentials, providerName, meta);
+      return result;
+    } catch (error) {
+      const invalidRequest =
+        error instanceof ProviderError &&
+        error.code === ProviderErrorCode.INVALID_REQUEST;
+      if (!invalidRequest) {
+        this.executor.recordRateLimit(credentials, providerName, meta);
+      }
+      throw error;
+    }
   }
 
   /**

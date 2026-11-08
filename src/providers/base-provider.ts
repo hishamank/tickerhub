@@ -53,7 +53,11 @@ export abstract class BaseProvider implements MarketDataProvider {
   }
 
   /** Helper: convert an HTTP/network error into a ProviderError. */
-  protected handleHttpError(error: unknown, context: string): never {
-    handleHttpErrorUtil(error, context);
+  protected handleHttpError(
+    error: unknown,
+    context: string,
+    secrets: readonly string[] = [],
+  ): never {
+    handleHttpErrorUtil(error, context, secrets);
   }
 }

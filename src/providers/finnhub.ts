@@ -13,6 +13,7 @@
 import { getLogger } from "../logging/index.js";
 import { ConfigurationError } from "../errors/index.js";
 import { BaseProvider } from "./base-provider.js";
+import { budgetedFetch } from "../resilience/request-budget.js";
 import type {
   QuoteData,
   DividendData,
@@ -33,6 +34,7 @@ import {
   finnhubIpoCalendar,
   finnhubSearch,
   finnhubInsider,
+  finnhubOptionalPriceTarget,
   type FinnhubGet,
 } from "./finnhub-extra.js";
 import { ProviderError, ProviderErrorCode } from "../types/provider.js";
@@ -51,11 +53,12 @@ import type {
   FinnhubNews,
   FinnhubEarningsResponse,
   FinnhubRecommendation,
-  FinnhubPriceTarget,
   FinnhubCandles,
   FinnhubProfile,
 } from "./finnhub-types.js";
 import {
+  assertValidTokenBody,
+  finnhubHttpError,
   mapFinnhubError,
   mapQuote,
   mapDividends,
@@ -91,6 +94,7 @@ export class FinnhubProvider extends BaseProvider {
   readonly rateLimit: RateLimitConfig = {
     requestsPerMinute: 60, // Free tier limit
   };
+  readonly meteredPerHttpRequest = true;
 
   private apiKey: string;
 
@@ -117,17 +121,13 @@ export class FinnhubProvider extends BaseProvider {
     const qs = new URLSearchParams(
       Object.entries(params).map(([k, v]): [string, string] => [k, String(v)]),
     ).toString();
-    const response = await fetch(`${FINNHUB_BASE_URL}${path}?${qs}`, {
+    const response = await budgetedFetch(`${FINNHUB_BASE_URL}${path}?${qs}`, {
       headers: { "X-Finnhub-Token": this.apiKey },
     });
-    if (!response.ok) {
-      throw new ProviderError(
-        ProviderErrorCode.NETWORK_ERROR,
-        `Finnhub API returned ${response.status}`,
-        true,
-      );
-    }
-    return (await response.json()) as T;
+    if (!response.ok) throw await finnhubHttpError(response);
+    const body: unknown = await response.json();
+    assertValidTokenBody(body);
+    return body as T;
   }
 
   async fetchQuote(symbol: string): Promise<QuoteData> {
@@ -256,10 +256,7 @@ export class FinnhubProvider extends BaseProvider {
         );
       }
 
-      const target = await this.get<FinnhubPriceTarget>(
-        "/stock/price-target",
-        { symbol: symbolUpper },
-      );
+      const target = await finnhubOptionalPriceTarget(this.getter, symbolUpper);
       return validateData(
         RatingDataSchema,
         buildRating(latest, target),

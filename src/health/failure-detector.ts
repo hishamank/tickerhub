@@ -64,15 +64,24 @@ export class FailureDetector {
    * @returns true if threshold exceeded
    */
   hasExceededFailureRate(metrics: HealthMetrics): boolean {
-    const totalRequests = metrics.successCount + metrics.failureCount;
+    const failureRate = this.operationalFailureRate(metrics);
+    return (
+      failureRate !== null && failureRate > this.thresholds.failureRateThreshold
+    );
+  }
 
-    // Need minimum requests to calculate meaningful failure rate
+  /**
+   * Failure rate over attempts that say something about provider health. Plan
+   * denials are excluded: a provider is not failing because it refused data the
+   * caller's subscription does not include. Null below the minimum sample.
+   */
+  private operationalFailureRate(metrics: HealthMetrics): number | null {
+    const failures = metrics.failureCount - (metrics.entitlementDenials ?? 0);
+    const totalRequests = metrics.successCount + failures;
     if (totalRequests < this.thresholds.minRequestsForRate) {
-      return false;
+      return null;
     }
-
-    const failureRate = metrics.failureCount / totalRequests;
-    return failureRate > this.thresholds.failureRateThreshold;
+    return failures / totalRequests;
   }
 
   /**
@@ -86,18 +95,13 @@ export class FailureDetector {
       return false;
     }
 
-    const totalRequests = metrics.successCount + metrics.failureCount;
-
-    // Need minimum requests to calculate meaningful failure rate
-    if (totalRequests < this.thresholds.minRequestsForRate) {
-      return false;
-    }
-
-    const failureRate = metrics.failureCount / totalRequests;
+    const failureRate = this.operationalFailureRate(metrics);
 
     // Degrade if failure rate is between 30% and 50%
     return (
-      failureRate > 0.3 && failureRate <= this.thresholds.failureRateThreshold
+      failureRate !== null &&
+      failureRate > 0.3 &&
+      failureRate <= this.thresholds.failureRateThreshold
     );
   }
 }

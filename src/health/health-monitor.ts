@@ -14,6 +14,8 @@ export interface HealthMetrics {
   failureCount: number;
   avgLatencyMs: number;
   consecutiveFailures: number;
+  /** Of `failureCount`, how many were plan denials rather than outages. */
+  entitlementDenials?: number;
   status: ProviderStatus;
   lastSuccessAt?: Date;
   lastFailureAt?: Date;
@@ -24,6 +26,8 @@ export interface RequestResult {
   latencyMs: number;
   timestamp: Date;
   error?: string;
+  /** The provider refused this data for the caller's plan; it is not down. */
+  entitlementDenied?: boolean;
 }
 
 /**
@@ -66,25 +70,23 @@ export class HealthMonitor {
       metrics.consecutiveFailures = 0;
       metrics.lastSuccessAt = result.timestamp;
     } else {
-      metrics.consecutiveFailures++;
+      if (!result.entitlementDenied) metrics.consecutiveFailures++;
       metrics.lastFailureAt = result.timestamp;
     }
 
     // Recalculate success/failure counts from recent window
     metrics.successCount = recent.filter((r) => r.success).length;
     metrics.failureCount = recent.filter((r) => !r.success).length;
+    metrics.entitlementDenials = recent.filter(
+      (r) => r.entitlementDenied,
+    ).length;
 
-    // Recalculate average latency from successful requests
+    // Average latency over successes; a provider with none reports what its
+    // failures actually took rather than a misleading 0.
     const successfulRequests = recent.filter((r) => r.success);
-    if (successfulRequests.length > 0) {
-      const totalLatency = successfulRequests.reduce(
-        (sum, r) => sum + r.latencyMs,
-        0
-      );
-      metrics.avgLatencyMs = Math.round(
-        totalLatency / successfulRequests.length
-      );
-    }
+    const sample = successfulRequests.length > 0 ? successfulRequests : recent;
+    const totalLatency = sample.reduce((sum, r) => sum + r.latencyMs, 0);
+    metrics.avgLatencyMs = Math.round(totalLatency / sample.length);
   }
 
   /**

@@ -16,8 +16,38 @@ import type { Cache } from "../ports/cache.js";
 import type { Logger } from "../ports/logger.js";
 import { generateCacheKey } from "./key-generator.js";
 import { getTTL } from "./ttl-config.js";
+import { collectProviderFailures } from "../resilience/attempt-report.js";
 import type { CacheEntry, SwrOptions, CacheStats } from "../types/cache.js";
 import type { MarketDataResponse } from "../types/provider.js";
+
+/**
+ * A null or empty aggregate means every provider failed or had nothing. Caching
+ * it would pin that outcome for the whole TTL, so it is returned but never
+ * stored. An empty list can be a true "no data", which costs only a re-query.
+ */
+function isTerminalEmpty(data: unknown): boolean {
+  return (
+    data === null ||
+    data === undefined ||
+    (Array.isArray(data) && data.length === 0)
+  );
+}
+
+/** What the response should say about a result that was not cached. */
+function terminalWarnings(failures: string[]): string[] {
+  if (failures.length === 0) {
+    return ["No provider returned data; result was not cached"];
+  }
+  return [
+    "All attempted providers failed or had no data; result was not cached",
+    ...failures,
+  ];
+}
+
+interface FetchOutcome<T> {
+  data: T;
+  warnings?: string[];
+}
 
 export class SwrCache {
   private inFlightRequests = new Map<string, Promise<unknown>>();
@@ -53,18 +83,10 @@ export class SwrCache {
 
     // Force refresh requested
     if (options?.forceRefresh) {
-      const data = await this.fetchAndCache(key, fetcher, staleAfter, maxAge);
-      return {
-        data,
-        metadata: {
-          source: "provider",
-          provider: "aggregator",
-          cached: false,
-          stale: false,
-          retrievedAt: new Date(),
-          latencyMs: Date.now() - startTime,
-        },
-      };
+      return this.providerResponse(
+        await this.fetchAndCache(key, fetcher, staleAfter, maxAge),
+        startTime,
+      );
     }
 
     const cached = await this.getCached<T>(key);
@@ -112,18 +134,10 @@ export class SwrCache {
     // Cache miss or expired - fetch fresh
     this.metrics.misses++;
     try {
-      const data = await this.fetchAndCache(key, fetcher, staleAfter, maxAge);
-      return {
-        data,
-        metadata: {
-          source: "provider",
-          provider: "aggregator",
-          cached: false,
-          stale: false,
-          retrievedAt: new Date(),
-          latencyMs: Date.now() - startTime,
-        },
-      };
+      return this.providerResponse(
+        await this.fetchAndCache(key, fetcher, staleAfter, maxAge),
+        startTime,
+      );
     } catch (error) {
       // Graceful degradation: return stale cache on error
       if (cached) {
@@ -197,22 +211,44 @@ export class SwrCache {
     }
   }
 
+  private providerResponse<T>(
+    { data, warnings }: FetchOutcome<T>,
+    startTime: number,
+  ): MarketDataResponse<T> {
+    return {
+      data,
+      metadata: {
+        source: "provider",
+        provider: "aggregator",
+        cached: false,
+        stale: false,
+        retrievedAt: new Date(),
+        latencyMs: Date.now() - startTime,
+        ...(warnings && { warnings }),
+      },
+    };
+  }
+
   private async fetchAndCache<T>(
     key: string,
     fetcher: () => Promise<T>,
     staleAfter: number,
     maxAge: number,
-  ): Promise<T> {
+  ): Promise<FetchOutcome<T>> {
     // Deduplicate concurrent requests for same key
     const inFlight = this.inFlightRequests.get(key);
     if (inFlight) {
       this.logger.debug(`Request coalesced: ${key}`);
-      return inFlight as Promise<T>;
+      return inFlight as Promise<FetchOutcome<T>>;
     }
 
     const promise = (async () => {
       try {
-        const data = await fetcher();
+        const { value: data, failures } = await collectProviderFailures(fetcher);
+        if (isTerminalEmpty(data)) {
+          this.logger.debug(`Not caching empty result: ${key}`);
+          return { data, warnings: terminalWarnings(failures) };
+        }
         const now = Date.now();
 
         const entry: CacheEntry<T> = {
@@ -227,7 +263,7 @@ export class SwrCache {
           `Cache set: ${key} (stale: ${staleAfter}s, max: ${maxAge}s)`,
         );
 
-        return data;
+        return { data };
       } finally {
         this.inFlightRequests.delete(key);
       }
