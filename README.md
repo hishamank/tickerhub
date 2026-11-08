@@ -135,34 +135,58 @@ built-in providers are listed in [`.env.example`](./.env.example).
 - **SWR cache** — fresh hits served instantly; stale entries served immediately
   while refreshed in the background; concurrent requests for the same key are
   coalesced.
+- **No negative caching** — a `null` or empty aggregate is never cached, so the
+  next call retries. It is returned with `metadata.warnings` explaining what each
+  provider reported (keys redacted), and never replaces good cached data.
 - **Circuit breaker** — applied uniformly to every provider call; trips after
-  repeated failures and short-circuits, excluding rate-limit errors. Recovers
-  via half-open probing.
+  repeated failures and short-circuits, excluding rate-limit and plan-denial
+  errors. Recovers via half-open probing.
 - **Rate limiting** — per-key quota tracking across per-minute/hour/day/month
-  windows skips exhausted providers before calling them. Use the
-  `SqliteRateLimitStore` to make daily/monthly budgets durable across restarts.
+  windows skips exhausted providers before calling them. FMP, Finnhub and
+  Polygon spend one unit per HTTP request, failed requests included, and stop
+  before a request that would exceed the quota. Other providers count one unit
+  per call. Use the `SqliteRateLimitStore` to make daily/monthly budgets durable
+  across restarts.
 - **Cross-provider fallback** — the aggregator tries the next provider when one
   returns nothing or errors.
+- **Plan denials** — a provider refusing data outside your subscription raises a
+  non-retryable `ENTITLEMENT_REQUIRED`, distinct from `AUTHENTICATION_FAILED`
+  for a bad key. Polygon quotes denied this way fall back to the previous
+  session's close; check `quote.priceBasis === "end_of_day"` and `asOfDate`
+  before treating a price as live.
 
 ## Health monitoring
 
-The aggregator records a live in-memory health snapshot per provider. To build
-a durable time series, flush it to the configured `HealthMetricsStore` on an
-interval (and prune old rows):
+Every real provider attempt updates a live per-provider snapshot and is written
+through to the configured `HealthMetricsStore`, recording success or failure and
+elapsed latency. Skipped providers (no key, exhausted quota, open circuit) are
+not attempts and are not recorded.
 
 ```ts
-const { service, flushHealthMetrics, healthRepository } = createAggregator({
+const { service, healthRepository } = createAggregator({
   /* configStore, healthStore, ... */
 });
 
-service.getProviderHealth("finnhub"); // { status, successRate, avgLatency }
+service.getProviderHealth("finnhub");
+// { status, successRate, avgLatency, provenance }
+// provenance: "observed", or "registry-default" before any attempt in this
+// process, when the figures are placeholders.
 
-// Persist a snapshot every 30s (use the SQLite store for durability):
-setInterval(() => void flushHealthMetrics(), 30_000);
+// The durable history, newest first:
+await healthRepository.getRecentMetrics("finnhub", 20);
 
-// Prune metrics older than 7 days (e.g. from a daily job):
+// The store gains a row per attempt, so prune it (e.g. from a daily job):
 await healthRepository.deleteOlderThan(new Date(Date.now() - 7 * 864e5));
 ```
+
+`flushHealthMetrics()` remains available to snapshot on demand. Plan denials
+count as failed attempts but do not trip the breaker or raise
+`consecutiveFailures`.
+
+Stored rows are summaries for inspection and do not restore live state.
+`getProviderHealth` covers the current process only, and rows do not record which
+failures were plan denials, so a stored row cannot be fed to `FailureDetector`
+with the same result as live metrics.
 
 ## Development
 

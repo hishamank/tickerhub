@@ -2,6 +2,8 @@ import { Decimal } from "decimal.js";
 import { ConfigurationError } from "../errors/index.js";
 import { getLogger } from "../logging/index.js";
 import { BaseProvider } from "./base-provider.js";
+import { isEntitlementDenied } from "./provider-utils.js";
+import { budgetedFetch } from "../resilience/request-budget.js";
 import type {
   DataType,
   DividendData,
@@ -19,53 +21,24 @@ import {
   validateData,
 } from "../types/validation.js";
 
+import type {
+  PolygonDividendResult,
+  PolygonHistoricalResponse,
+  PolygonReferenceResponse,
+  PolygonSnapshotResponse,
+  PolygonSplitResult,
+} from "./polygon-types.js";
+
 const logger = getLogger(
   "polygon",
   "packages/provider-aggregator/src/providers/polygon.ts",
 );
 
-interface PolygonSnapshotResponse {
-  ticker?: {
-    ticker?: string;
-    todaysChangePerc?: number;
-    day?: { o?: number; h?: number; l?: number; c?: number; v?: number };
-    prevDay?: { c?: number };
-    lastTrade?: { p?: number; t?: number };
-    updated?: number;
-  };
-  status?: string;
-}
-
-interface PolygonHistoricalResponse {
-  results?: Array<{ t: number; o?: number; h?: number; l?: number; c?: number; v?: number }>;
-  resultsCount?: number;
-  status?: string;
-}
-
-interface PolygonReferenceResponse<T> {
-  results?: T[];
-  status?: string;
-}
-interface PolygonDividendResult {
-  ex_dividend_date?: string;
-  pay_date?: string;
-  record_date?: string;
-  declaration_date?: string;
-  cash_amount?: number;
-  currency?: string;
-  frequency?: number;
-}
-interface PolygonSplitResult {
-  execution_date?: string;
-  split_from?: number;
-  split_to?: number;
-  ticker?: string;
-}
-
 export class PolygonProvider extends BaseProvider {
   readonly name = "polygon";
   readonly supportedDataTypes: DataType[] = ["prices", "dividends", "events"];
   readonly rateLimit: RateLimitConfig = { requestsPerMinute: 5 };
+  readonly meteredPerHttpRequest = true;
   private readonly apiKey: string;
   private readonly baseUrl = "https://api.polygon.io";
 
@@ -81,10 +54,18 @@ export class PolygonProvider extends BaseProvider {
   async fetchQuote(symbol: string): Promise<QuoteData | null> {
     this.validateSymbol(symbol);
     const normalizedSymbol = symbol.toUpperCase();
-    const response = await this.requestJson<PolygonSnapshotResponse>(
-      `/v2/snapshot/locale/us/markets/stocks/tickers/${normalizedSymbol}`,
-      `fetchQuote(${normalizedSymbol})`,
-    );
+    let response: PolygonSnapshotResponse;
+    try {
+      response = await this.requestJson<PolygonSnapshotResponse>(
+        `/v2/snapshot/locale/us/markets/stocks/tickers/${normalizedSymbol}`,
+        `fetchQuote(${normalizedSymbol})`,
+      );
+    } catch (error) {
+      if (isEntitlementDenied(error)) {
+        return this.fetchPreviousDayQuote(normalizedSymbol);
+      }
+      throw error;
+    }
     const ticker = response.ticker;
     const previousClose = ticker?.prevDay?.c;
     const price = ticker?.lastTrade?.p ?? ticker?.day?.c ?? previousClose;
@@ -111,10 +92,40 @@ export class PolygonProvider extends BaseProvider {
       previousClose,
       change,
       changePercent,
-      volume: ticker.day?.v,
+      volume: this.toVolume(ticker.day?.v),
       timestamp: this.toDate(ticker.lastTrade?.t ?? ticker.updated),
       currency: "USD",
     }, `Polygon quote for ${normalizedSymbol}`);
+  }
+
+  /**
+   * Plans without snapshot access can still read the previous session's bar.
+   * This is end-of-day data: it keeps the bar's own date, is labelled as such,
+   * and reports no change figures because the bar has no prior close.
+   */
+  private async fetchPreviousDayQuote(symbol: string): Promise<QuoteData | null> {
+    const response = await this.requestJson<PolygonHistoricalResponse>(
+      `/v2/aggs/ticker/${symbol}/prev?adjusted=true`,
+      `fetchQuote.prev(${symbol})`,
+    );
+    const bar = response.results?.[0];
+    if (!bar?.t || bar.c === undefined) return null;
+
+    const timestamp = this.toDate(bar.t);
+    return validateData(QuoteDataSchema, {
+      symbol,
+      price: bar.c,
+      close: bar.c,
+      open: bar.o,
+      high: bar.h,
+      low: bar.l,
+      volume: this.toVolume(bar.v),
+      timestamp,
+      currency: "USD",
+      priceBasis: "end_of_day",
+      asOfDate: this.toIsoDate(timestamp),
+      fallbackSource: "polygon:/v2/aggs/ticker/{ticker}/prev",
+    }, `Polygon previous-day quote for ${symbol}`);
   }
 
   async fetchDividends(
@@ -203,7 +214,7 @@ export class PolygonProvider extends BaseProvider {
       .map((item) => validateData(HistoricalPriceSchema, {
         date: this.toIsoDate(this.toDate(item.t)),
         close: item.c,
-        volume: item.v,
+        volume: this.toVolume(item.v),
         open: item.o,
         high: item.h,
         low: item.l,
@@ -214,7 +225,7 @@ export class PolygonProvider extends BaseProvider {
     const url = new URL(path, this.baseUrl);
     url.searchParams.append("apiKey", this.apiKey);
     try {
-      const response = await fetch(url);
+      const response = await budgetedFetch(url);
 
       if (!response.ok) {
         throw this.mapHttpError(response.status);
@@ -229,6 +240,11 @@ export class PolygonProvider extends BaseProvider {
     } catch (error) {
       return this.handleHttpError(error, context);
     }
+  }
+
+  /** Polygon can report fractional share volume; the domain uses whole shares. */
+  private toVolume(volume?: number): number | undefined {
+    return volume === undefined ? undefined : Math.round(volume);
   }
 
   private toIsoDate(date: Date): string {
@@ -265,10 +281,17 @@ export class PolygonProvider extends BaseProvider {
         false,
       );
     }
-    if (status === 401 || status === 403) {
+    if (status === 401) {
       return new ProviderError(
         ProviderErrorCode.AUTHENTICATION_FAILED,
         "Polygon authentication failed - check API key",
+        false,
+      );
+    }
+    if (status === 403) {
+      return new ProviderError(
+        ProviderErrorCode.ENTITLEMENT_REQUIRED,
+        "Polygon plan does not include this data (HTTP 403)",
         false,
       );
     }

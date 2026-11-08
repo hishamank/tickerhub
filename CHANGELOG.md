@@ -6,8 +6,64 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+
+- **FMP now uses the `/stable` API.** Every legacy `/api/v3` and `/api/v4` call
+  moved to its stable endpoint, with mappers adapted to the flat stable payloads.
+  FMP has retired the legacy paths for accounts created after August 2025.
+  Ratings now come from `ratings-snapshot`, so `consensus` derives from FMP's
+  1–5 score or letter grade. Earnings report `fiscalQuarter: "Unknown"` when the
+  payload has no quarter, and `fiscalYear` approximates from the report date's
+  calendar year when the payload has none.
+- **Quota follows real requests.** FMP, Finnhub and Polygon now spend one unit
+  per HTTP request, including failed ones, and are checked before each request,
+  so a Polygon fallback or Finnhub price target cannot exceed the quota. Other
+  providers still count one unit per call, now including failed calls, which
+  uses local quota faster than before. Invalid-request rejections are not counted.
+- **Plan denials are errors, not empty results.** A new non-retryable
+  `ProviderErrorCode.ENTITLEMENT_REQUIRED` covers FMP 402/403 (carrying FMP's
+  own message, including the legacy-endpoint notice), Finnhub 403, and Polygon
+  403. Direct provider calls that used to resolve to `null`/`[]` on an FMP 403
+  now reject. The aggregator still falls back to the next provider.
+- Finnhub maps 401 and invalid-token bodies to `AUTHENTICATION_FAILED` and 429
+  to a retryable `RATE_LIMIT_EXCEEDED`. Polygon maps 401 to
+  `AUTHENTICATION_FAILED`, separately from a 403 plan denial.
+- **Empty and failed results are no longer cached.** A `null` or `[]` aggregate
+  is returned with `metadata.warnings` (including each provider's sanitized
+  failure reason) and is retried on the next call. It never replaces good cached
+  data. Genuinely empty symbols therefore re-query providers on each request.
+- **Health is written through.** With a configured `healthStore`, every real
+  provider attempt is persisted as it happens, so `flushHealthMetrics` is now
+  optional. Prune with `deleteOlderThan`, as the store grows per attempt.
+- `getProviderHealth` adds `provenance`: `observed`, or `registry-default` when
+  the provider has no attempts in this process and the figures are placeholders.
+
+### Added
+
+- Polygon quotes fall back to the previous session's bar when the snapshot is
+  denied by plan. These quotes are end-of-day data, labelled with
+  `priceBasis: "end_of_day"`, `asOfDate` and `fallbackSource`, keep the bar's own
+  timestamp, and omit `previousClose`/`change`/`changePercent`.
+
 ### Fixed
 
+- List lookups (dividends, earnings, events, historical prices) now continue past
+  a provider returning `[]` instead of stopping at it.
+- Finnhub ratings keep the free recommendation data when the optional price
+  target is denied by plan. Other price-target errors still propagate.
+- `getProviderHealth` reported a provider with a 0% success rate as 100%.
+- Circuit-breaker short-circuits no longer count as provider attempts in health.
+- Plan denials count as failed attempts but no longer trip the circuit breaker,
+  raise `consecutiveFailures`, or feed automatic-disable thresholds, so one
+  unentitled endpoint cannot take down a provider's other endpoints.
+- A provider that has only failed now reports its real elapsed latency, not 0.
+- The FMP health check no longer logs the raw caught error, which could expose
+  the API key carried in the request URL.
+- API keys are redacted from provider error messages, logs, health records and
+  response warnings.
+- Twelve Data historical prices are returned oldest-first.
+- Polygon volumes are rounded to integers across snapshot, historical and
+  previous-day data.
 - Accept Yahoo index, FX, and futures symbols (`^GSPC`, `^VIX`, `AED=X`,
   `GC=F`) and symbols up to 15 characters in shared validation and quote data.
 - Reuse shared validation for Twelve Data while preserving slash-delimited

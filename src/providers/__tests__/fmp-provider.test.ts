@@ -28,17 +28,15 @@ describe("FMPProvider", () => {
   });
 
   describe("fetchQuote", () => {
-    it("should return null on 403 response", async () => {
+    it("rejects with an entitlement error on 403", async () => {
       fetchMock.mockResolvedValue({
         ok: false,
         status: 403,
       });
 
       provider = new FMPProvider({ api_key: "test-api-key" });
-      const result = await provider.fetchQuote("AAPL");
 
-      expect(result).toBeNull();
-      expect(fetchMock).toHaveBeenCalled();
+      await expect(provider.fetchQuote("AAPL")).rejects.toMatchObject({ code: "ENTITLEMENT_REQUIRED", retryable: false });
     });
 
     it("should throw on 401 (invalid API key)", async () => {
@@ -65,44 +63,45 @@ describe("FMPProvider", () => {
   });
 
   describe("fetchDividends", () => {
-    it("should return empty array on 403 response", async () => {
+    it("rejects with an entitlement error on 403", async () => {
       fetchMock.mockResolvedValue({
         ok: false,
         status: 403,
       });
 
       provider = new FMPProvider({ api_key: "test-api-key" });
-      const result = await provider.fetchDividends("AAPL");
 
-      expect(result).toEqual([]);
+      await expect(
+        provider.fetchDividends("AAPL"),
+      ).rejects.toMatchObject({ code: "ENTITLEMENT_REQUIRED", retryable: false });
     });
   });
 
   describe("fetchEarnings", () => {
-    it("should return empty array on 403 response", async () => {
+    it("rejects with an entitlement error on 403", async () => {
       fetchMock.mockResolvedValue({
         ok: false,
         status: 403,
       });
 
       provider = new FMPProvider({ api_key: "test-api-key" });
-      const result = await provider.fetchEarnings("AAPL");
 
-      expect(result).toEqual([]);
+      await expect(
+        provider.fetchEarnings("AAPL"),
+      ).rejects.toMatchObject({ code: "ENTITLEMENT_REQUIRED", retryable: false });
     });
   });
 
   describe("fetchRatings", () => {
-    it("should return null on 403 response", async () => {
+    it("rejects with an entitlement error on 403", async () => {
       fetchMock.mockResolvedValue({
         ok: false,
         status: 403,
       });
 
       provider = new FMPProvider({ api_key: "test-api-key" });
-      const result = await provider.fetchRatings("AAPL");
 
-      expect(result).toBeNull();
+      await expect(provider.fetchRatings("AAPL")).rejects.toMatchObject({ code: "ENTITLEMENT_REQUIRED", retryable: false });
     });
 
     it("should return null when no ratings data available", async () => {
@@ -119,20 +118,21 @@ describe("FMPProvider", () => {
   });
 
   describe("fetchHistoricalPrices", () => {
-    it("should return empty array on 403 response", async () => {
+    it("rejects with an entitlement error on 403", async () => {
       fetchMock.mockResolvedValue({
         ok: false,
         status: 403,
       });
 
       provider = new FMPProvider({ api_key: "test-api-key" });
-      const result = await provider.fetchHistoricalPrices(
+
+      await expect(
+        provider.fetchHistoricalPrices(
         "AAPL",
         new Date("2024-01-01"),
         new Date("2024-01-31"),
-      );
-
-      expect(result).toEqual([]);
+      ),
+      ).rejects.toMatchObject({ code: "ENTITLEMENT_REQUIRED", retryable: false });
     });
   });
 
@@ -172,10 +172,10 @@ describe("FMPProvider", () => {
       expect(profile?.address).toBe("One Apple Park Way, Cupertino, CA");
     });
 
-    it("returns null profile on a 403 response", async () => {
+    it("rejects with an entitlement error on a 403 response", async () => {
       fetchMock.mockResolvedValue({ ok: false, status: 403 });
       provider = new FMPProvider({ api_key: "test-api-key" });
-      expect(await provider.fetchProfile!("AAPL")).toBeNull();
+      await expect(provider.fetchProfile!("AAPL")).rejects.toMatchObject({ code: "ENTITLEMENT_REQUIRED", retryable: false });
     });
   });
 

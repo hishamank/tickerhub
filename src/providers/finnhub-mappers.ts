@@ -14,7 +14,7 @@ import type {
   CompanyProfile,
 } from "../types/index.js";
 import { ProviderError, ProviderErrorCode } from "../types/provider.js";
-import { handleHttpError } from "./provider-utils.js";
+import { handleHttpError, sanitizeSecrets } from "./provider-utils.js";
 import type {
   FinnhubQuote,
   FinnhubDividend,
@@ -35,9 +35,71 @@ function clean<T extends Record<string, unknown>>(obj: T): T {
   return obj;
 }
 
+const authFailed = () =>
+  new ProviderError(
+    ProviderErrorCode.AUTHENTICATION_FAILED,
+    "Finnhub authentication failed - check API key",
+    false,
+  );
+
+const INVALID_TOKEN_TEXT = /invalid (api key|token)/i;
+
+/** Throw if a 2xx Finnhub body is really an invalid-token error. */
+export function assertValidTokenBody(body: unknown): void {
+  const error = (body as { error?: unknown } | null)?.error;
+  if (typeof error === "string" && INVALID_TOKEN_TEXT.test(error)) {
+    throw authFailed();
+  }
+}
+
+/** Finnhub's `{ "error": "..." }` message; the body is best-effort. */
+async function upstreamError(response: Response): Promise<string | undefined> {
+  try {
+    const body = (await response.json()) as { error?: unknown } | null;
+    return typeof body?.error === "string" && body.error
+      ? sanitizeSecrets(body.error)
+      : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/** Translate a non-2xx Finnhub response into a typed ProviderError. */
+export async function finnhubHttpError(
+  response: Response,
+): Promise<ProviderError> {
+  if (response.status === 401) return authFailed();
+  if (response.status === 429) {
+    return new ProviderError(
+      ProviderErrorCode.RATE_LIMIT_EXCEEDED,
+      "Finnhub rate limit exceeded",
+      true,
+      60,
+    );
+  }
+  if (response.status === 403) {
+    const reason = await upstreamError(response);
+    if (reason && INVALID_TOKEN_TEXT.test(reason)) return authFailed();
+    return new ProviderError(
+      ProviderErrorCode.ENTITLEMENT_REQUIRED,
+      `Finnhub plan does not include this data: ${reason ?? "HTTP 403"}`,
+      false,
+    );
+  }
+  return new ProviderError(
+    ProviderErrorCode.NETWORK_ERROR,
+    `Finnhub API returned ${response.status}`,
+    true,
+  );
+}
+
 /** Map a Finnhub 429 to a retryable rate-limit error; else standard HTTP mapping. */
 export function mapFinnhubError(error: unknown, context: string): never {
-  if (error instanceof Error && error.message.includes("429")) {
+  if (
+    error instanceof Error &&
+    !(error instanceof ProviderError) &&
+    error.message.includes("429")
+  ) {
     throw new ProviderError(
       ProviderErrorCode.RATE_LIMIT_EXCEEDED,
       "Finnhub rate limit exceeded",
@@ -195,7 +257,7 @@ export function mapEarnings(items: FinnhubEarningsItem[]): EarningsData[] {
 
 export function buildRating(
   latest: FinnhubRecommendation,
-  target: FinnhubPriceTarget,
+  target?: FinnhubPriceTarget,
 ): RatingData {
   const totalRatings =
     latest.strongBuy +

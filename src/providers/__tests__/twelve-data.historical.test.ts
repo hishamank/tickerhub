@@ -33,21 +33,22 @@ describe("TwelveDataProvider — fetchHistoricalPrices", () => {
     const result = await provider.fetchHistoricalPrices("AAPL", from, to);
 
     expect(result).toHaveLength(2);
+    // Twelve Data answers newest-first; the domain contract is oldest-first.
     expect(result[0]).toEqual({
-      date: "2024-01-05",
-      open: 180,
-      high: 182,
-      low: 179,
-      close: 181.5,
-      volume: 50000000,
-    });
-    expect(result[1]).toEqual({
       date: "2024-01-04",
       open: 178,
       high: 180.5,
       low: 177,
       close: 179.8,
       volume: 48000000,
+    });
+    expect(result[1]).toEqual({
+      date: "2024-01-05",
+      open: 180,
+      high: 182,
+      low: 179,
+      close: 181.5,
+      volume: 50000000,
     });
   });
 

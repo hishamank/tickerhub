@@ -2,7 +2,7 @@
  * FMP extended capabilities (news, IPO calendar, search, insider trades,
  * market movers, forex rate). Kept out of the provider class to respect the
  * file-size cap. Each function takes a bound fetcher that prepends the host and
- * appends the API key, and degrades to empty/null on 403 (paid-plan) responses.
+ * appends the API key, and raises a typed ProviderError on denied responses.
  */
 
 import type {
@@ -22,10 +22,13 @@ import {
   ForexRateSchema,
   validateData,
 } from "../types/validation.js";
-import { fmpForbiddenOrThrow } from "./fmp-mappers.js";
 
-/** Bound FMP fetcher: takes an `/api/vN/...` path, returns the raw Response. */
-export type FmpGet = (apiPath: string) => Promise<Response>;
+/** Bound FMP fetcher: takes a `/stable/...` path, returns the parsed rows. */
+export type FmpGet = <T>(
+  apiPath: string,
+  label: string,
+  target: string,
+) => Promise<T[]>;
 
 interface FmpNewsItem {
   title: string;
@@ -49,6 +52,7 @@ interface FmpSearchItem {
   symbol: string;
   name?: string;
   currency?: string;
+  exchange?: string;
   exchangeShortName?: string;
   stockExchange?: string;
 }
@@ -66,6 +70,7 @@ interface FmpMoverItem {
   price?: number;
   change?: number;
   changesPercentage?: number;
+  changePercentage?: number;
 }
 interface FmpFxQuote {
   symbol: string;
@@ -74,15 +79,18 @@ interface FmpFxQuote {
   ask?: number;
 }
 
+const MOVER_ENDPOINTS = {
+  gainers: "biggest-gainers",
+  losers: "biggest-losers",
+  actives: "most-actives",
+} as const;
+
 export async function fmpNews(
   get: FmpGet,
   symbol: string,
 ): Promise<NewsArticle[]> {
   const sym = symbol.toUpperCase();
-  const res = await get(`/api/v3/stock_news?tickers=${sym}&limit=50`);
-  if (fmpForbiddenOrThrow(res, "news", symbol)) return [];
-  const data = (await res.json()) as FmpNewsItem[];
-  if (!Array.isArray(data)) return [];
+  const data = await get<FmpNewsItem>(`/stable/news/stock?symbols=${encodeURIComponent(sym)}&limit=50`, "news", symbol);
   return data.map((n) =>
     validateData(
       NewsArticleSchema,
@@ -101,10 +109,7 @@ export async function fmpNews(
 }
 
 export async function fmpIpoCalendar(get: FmpGet): Promise<IpoEvent[]> {
-  const res = await get(`/api/v3/ipo_calendar`);
-  if (fmpForbiddenOrThrow(res, "ipo calendar", "")) return [];
-  const data = (await res.json()) as FmpIpoItem[];
-  if (!Array.isArray(data)) return [];
+  const data = await get<FmpIpoItem>(`/stable/ipos-calendar`, "ipo calendar", "");
   return data.map((i) =>
     validateData(
       IpoEventSchema,
@@ -125,17 +130,14 @@ export async function fmpSearch(
   get: FmpGet,
   query: string,
 ): Promise<SymbolSearchResult[]> {
-  const res = await get(`/api/v3/search?query=${encodeURIComponent(query)}&limit=25`);
-  if (fmpForbiddenOrThrow(res, "search", query)) return [];
-  const data = (await res.json()) as FmpSearchItem[];
-  if (!Array.isArray(data)) return [];
+  const data = await get<FmpSearchItem>(`/stable/search-symbol?query=${encodeURIComponent(query)}&limit=25`, "search", query);
   return data.map((r) =>
     validateData(
       SymbolSearchResultSchema,
       {
         symbol: r.symbol,
         name: r.name || undefined,
-        exchange: r.exchangeShortName || r.stockExchange || undefined,
+        exchange: r.exchange || r.exchangeShortName || r.stockExchange || undefined,
         currency: r.currency || undefined,
       },
       `FMP search for ${query}`,
@@ -148,10 +150,7 @@ export async function fmpInsider(
   symbol: string,
 ): Promise<InsiderTransaction[]> {
   const sym = symbol.toUpperCase();
-  const res = await get(`/api/v4/insider-trading?symbol=${sym}&page=0`);
-  if (fmpForbiddenOrThrow(res, "insider trading", symbol)) return [];
-  const data = (await res.json()) as FmpInsiderItem[];
-  if (!Array.isArray(data)) return [];
+  const data = await get<FmpInsiderItem>(`/stable/insider-trading/search?symbol=${encodeURIComponent(sym)}&page=0`, "insider trading", symbol);
   return data.map((t) =>
     validateData(
       InsiderTransactionSchema,
@@ -172,10 +171,7 @@ export async function fmpMovers(
   get: FmpGet,
   direction: "gainers" | "losers" | "actives",
 ): Promise<MarketMover[]> {
-  const res = await get(`/api/v3/stock_market/${direction}`);
-  if (fmpForbiddenOrThrow(res, "movers", direction)) return [];
-  const data = (await res.json()) as FmpMoverItem[];
-  if (!Array.isArray(data)) return [];
+  const data = await get<FmpMoverItem>(`/stable/${MOVER_ENDPOINTS[direction]}`, "movers", direction);
   return data.map((m) =>
     validateData(
       MarketMoverSchema,
@@ -184,7 +180,7 @@ export async function fmpMovers(
         name: m.name || undefined,
         price: m.price ?? undefined,
         change: m.change ?? undefined,
-        changePercent: m.changesPercentage ?? undefined,
+        changePercent: m.changesPercentage ?? m.changePercentage ?? undefined,
       },
       `FMP movers (${direction})`,
     ),
@@ -197,10 +193,8 @@ export async function fmpForexRate(
   to: string,
 ): Promise<ForexRate | null> {
   const pair = `${from.toUpperCase()}${to.toUpperCase()}`;
-  const res = await get(`/api/v3/quote/${pair}`);
-  if (fmpForbiddenOrThrow(res, "forex rate", pair)) return null;
-  const data = (await res.json()) as FmpFxQuote[];
-  const quote = Array.isArray(data) ? data[0] : undefined;
+  const data = await get<FmpFxQuote>(`/stable/quote?symbol=${encodeURIComponent(pair)}`, "forex rate", pair);
+  const quote = data[0];
   if (!quote || quote.price == null) return null;
   return validateData(
     ForexRateSchema,

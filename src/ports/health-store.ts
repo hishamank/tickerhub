@@ -7,6 +7,9 @@
  *
  * Records are keyed by provider name (no foreign-key/UUID coupling) so the
  * contract stays storage-agnostic.
+ *
+ * Records are summaries, not a way to restore live state: they do not say which
+ * failures were plan denials, so `FailureDetector` would read those as outages.
  */
 export interface HealthMetricRecord {
   providerName: string;

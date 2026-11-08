@@ -5,13 +5,15 @@
  * Requires API key. Free tier: 250 calls/day.
  *
  * Thin HTTP/orchestration layer: response shapes live in `fmp-types.ts` and
- * pure transforms + status handling in `fmp-mappers.ts`. 403 responses degrade
- * to empty results so the aggregator can fall back to other providers.
+ * pure transforms + status handling in `fmp-mappers.ts`. Plan-denied responses
+ * throw ENTITLEMENT_REQUIRED so the aggregator falls back to other providers.
  */
 
 import { getLogger } from "../logging/index.js";
 import { ConfigurationError } from "../errors/index.js";
 import { BaseProvider } from "./base-provider.js";
+import { describeCaughtError } from "./provider-utils.js";
+import { budgetedFetch } from "../resilience/request-budget.js";
 import type {
   QuoteData,
   DividendData,
@@ -48,14 +50,14 @@ import {
 } from "../types/validation.js";
 import type {
   FMPQuoteResponse,
-  FMPDividendHistory,
+  FMPDividend,
   FMPEarningsItem,
   FMPRating,
-  FMPHistoricalResponse,
+  FMPHistoricalItem,
   FMPProfile,
 } from "./fmp-types.js";
 import {
-  fmpForbiddenOrThrow,
+  parseFmpRows,
   mapQuote,
   mapDividends,
   mapEarnings,
@@ -85,16 +87,31 @@ export class FMPProvider extends BaseProvider {
   readonly rateLimit: RateLimitConfig = {
     requestsPerDay: 250, // Free tier limit
   };
+  readonly meteredPerHttpRequest = true;
 
   private apiKey: string;
-  private baseUrl = "https://financialmodelingprep.com/api/v3";
   private host = "https://financialmodelingprep.com";
 
-  /** Bound fetcher for the extended-capability helpers (appends the API key). */
-  private readonly getter: FmpGet = (apiPath) =>
-    fetch(
-      `${this.host}${apiPath}${apiPath.includes("?") ? "&" : "?"}apikey=${this.apiKey}`,
-    );
+  /** Bound fetcher: appends the API key and returns parsed rows or throws. */
+  private readonly getRows: FmpGet = async <T,>(
+    apiPath: string,
+    label: string,
+    target: string,
+  ): Promise<T[]> => {
+    try {
+      const separator = apiPath.includes("?") ? "&" : "?";
+      const response = await budgetedFetch(
+        `${this.host}${apiPath}${separator}apikey=${this.apiKey}`,
+      );
+      return await parseFmpRows<T>(response, {
+        label,
+        target,
+        apiKey: this.apiKey,
+      });
+    } catch (error) {
+      return this.handleHttpError(error, `FMP ${label}`, [this.apiKey]);
+    }
+  };
 
   constructor(credentials: Record<string, string> | null) {
     super();
@@ -109,27 +126,11 @@ export class FMPProvider extends BaseProvider {
     this.validateSymbol(symbol);
     try {
       const normalizedSymbol = symbol.toUpperCase();
-      const response = await fetch(
-        `${this.baseUrl}/quote/${normalizedSymbol}?apikey=${this.apiKey}`,
+      const data = await this.getRows<FMPQuoteResponse>(
+        `/stable/quote?symbol=${encodeURIComponent(normalizedSymbol)}`,
+        "quote",
+        symbol,
       );
-      if (fmpForbiddenOrThrow(response, "quote", symbol)) return null;
-
-      const data = (await response.json()) as
-        | FMPQuoteResponse[]
-        | { "Error Message"?: string };
-
-      if (!Array.isArray(data)) {
-        const isErrorMessage = "Error Message" in data && !!data["Error Message"];
-        throw new ProviderError(
-          isErrorMessage
-            ? ProviderErrorCode.SYMBOL_NOT_FOUND
-            : ProviderErrorCode.PROVIDER_ERROR,
-          isErrorMessage
-            ? `Symbol ${normalizedSymbol} not found`
-            : "Invalid response from FMP API",
-          !isErrorMessage,
-        );
-      }
 
       const quote = data[0];
       if (!quote) {
@@ -157,15 +158,13 @@ export class FMPProvider extends BaseProvider {
     this.validateSymbol(symbol);
     try {
       const normalizedSymbol = symbol.toUpperCase();
-      const response = await fetch(
-        `${this.baseUrl}/historical-price-full/stock_dividend/${normalizedSymbol}?apikey=${this.apiKey}`,
+      const data = await this.getRows<FMPDividend>(
+        `/stable/dividends?symbol=${encodeURIComponent(normalizedSymbol)}`,
+        "dividends",
+        symbol,
       );
-      if (fmpForbiddenOrThrow(response, "dividends", symbol)) return [];
 
-      const data = (await response.json()) as FMPDividendHistory;
-      if (!data.historical || !Array.isArray(data.historical)) return [];
-
-      return mapDividends(data.historical, startDate, endDate).map((div) =>
+      return mapDividends(data, startDate, endDate).map((div) =>
         validateData(DividendDataSchema, div, `FMP dividend for ${symbol}`),
       );
     } catch (error) {
@@ -177,13 +176,12 @@ export class FMPProvider extends BaseProvider {
     this.validateSymbol(symbol);
     try {
       const normalizedSymbol = symbol.toUpperCase();
-      const response = await fetch(
-        `${this.baseUrl}/earnings-calendar/${normalizedSymbol}?apikey=${this.apiKey}`,
+      const data = await this.getRows<FMPEarningsItem>(
+        `/stable/earnings?symbol=${encodeURIComponent(normalizedSymbol)}`,
+        "earnings",
+        symbol,
       );
-      if (fmpForbiddenOrThrow(response, "earnings", symbol)) return [];
-
-      const data = (await response.json()) as FMPEarningsItem[];
-      if (!Array.isArray(data) || data.length === 0) return [];
+      if (data.length === 0) return [];
 
       return mapEarnings(data).map((earning) =>
         validateData(EarningsDataSchema, earning, `FMP earnings for ${symbol}`),
@@ -197,20 +195,18 @@ export class FMPProvider extends BaseProvider {
     this.validateSymbol(symbol);
     try {
       const normalizedSymbol = symbol.toUpperCase();
-      const response = await fetch(
-        `${this.baseUrl}/rating/${normalizedSymbol}?apikey=${this.apiKey}`,
+      const data = await this.getRows<FMPRating>(
+        `/stable/ratings-snapshot?symbol=${encodeURIComponent(normalizedSymbol)}`,
+        "ratings",
+        symbol,
       );
-      if (fmpForbiddenOrThrow(response, "ratings", symbol)) return null;
-
-      const data = (await response.json()) as FMPRating[];
-      const latest = data?.[0];
-      if (!Array.isArray(data) || !latest) return null;
+      const latest = data[0];
+      if (!latest) return null;
 
       return validateData(
         RatingDataSchema,
         {
-          consensus: mapRatingToConsensus(latest.rating),
-          targetPrice: latest.ratingTargetPrice ?? undefined,
+          consensus: mapRatingToConsensus(latest),
           numberOfAnalysts: 1, // FMP doesn't provide a count
         },
         `FMP ratings for ${symbol}`,
@@ -230,14 +226,12 @@ export class FMPProvider extends BaseProvider {
       const normalizedSymbol = symbol.toUpperCase();
       const from = startDate.toISOString().split("T")[0];
       const to = endDate.toISOString().split("T")[0];
-      const response = await fetch(
-        `${this.baseUrl}/historical-price-full/${normalizedSymbol}?from=${from}&to=${to}&apikey=${this.apiKey}`,
+      const data = await this.getRows<FMPHistoricalItem>(
+        `/stable/historical-price-eod/full?symbol=${encodeURIComponent(normalizedSymbol)}&from=${from}&to=${to}`,
+        "historical prices",
+        symbol,
       );
-      if (fmpForbiddenOrThrow(response, "historical prices", symbol)) return [];
-
-      const data = (await response.json()) as FMPHistoricalResponse;
-      if (!data.historical || !Array.isArray(data.historical)) return [];
-      return mapHistorical(data.historical);
+      return mapHistorical(data);
     } catch (error) {
       return this.handleHttpError(error, `fetchHistoricalPrices(${symbol})`);
     }
@@ -247,13 +241,12 @@ export class FMPProvider extends BaseProvider {
     this.validateSymbol(symbol);
     try {
       const normalizedSymbol = symbol.toUpperCase();
-      const response = await fetch(
-        `${this.baseUrl}/profile/${normalizedSymbol}?apikey=${this.apiKey}`,
+      const data = await this.getRows<FMPProfile>(
+        `/stable/profile?symbol=${encodeURIComponent(normalizedSymbol)}`,
+        "profile",
+        symbol,
       );
-      if (fmpForbiddenOrThrow(response, "profile", symbol)) return null;
-
-      const data = (await response.json()) as FMPProfile[];
-      const profile = Array.isArray(data) ? data[0] : undefined;
+      const profile = data[0];
       if (!profile) return null;
 
       return validateData(
@@ -268,36 +261,36 @@ export class FMPProvider extends BaseProvider {
 
   fetchNews(symbol: string): Promise<NewsArticle[]> {
     this.validateSymbol(symbol);
-    return fmpNews(this.getter, symbol);
+    return fmpNews(this.getRows, symbol);
   }
 
   fetchIpoCalendar(): Promise<IpoEvent[]> {
-    return fmpIpoCalendar(this.getter);
+    return fmpIpoCalendar(this.getRows);
   }
 
   searchSymbols(query: string): Promise<SymbolSearchResult[]> {
-    return fmpSearch(this.getter, query);
+    return fmpSearch(this.getRows, query);
   }
 
   fetchInsiderTransactions(symbol: string): Promise<InsiderTransaction[]> {
     this.validateSymbol(symbol);
-    return fmpInsider(this.getter, symbol);
+    return fmpInsider(this.getRows, symbol);
   }
 
   fetchMarketMovers(
     direction: "gainers" | "losers" | "actives",
   ): Promise<MarketMover[]> {
-    return fmpMovers(this.getter, direction);
+    return fmpMovers(this.getRows, direction);
   }
 
   fetchForexRate(from: string, to: string): Promise<ForexRate | null> {
-    return fmpForexRate(this.getter, from, to);
+    return fmpForexRate(this.getRows, from, to);
   }
 
   override async healthCheck(): Promise<boolean> {
     try {
-      const response = await fetch(
-        `${this.baseUrl}/quote/AAPL?apikey=${this.apiKey}`,
+      const response = await budgetedFetch(
+        `${this.host}/stable/quote?symbol=AAPL&apikey=${this.apiKey}`,
       );
       if (response.status === 403) {
         logger.warn(
@@ -307,7 +300,9 @@ export class FMPProvider extends BaseProvider {
       }
       return response.ok;
     } catch (error) {
-      logger.error("[fmp] Health check failed:", error);
+      logger.error("[fmp] Health check failed", {
+        error: describeCaughtError(error, [this.apiKey]),
+      });
       return false;
     }
   }

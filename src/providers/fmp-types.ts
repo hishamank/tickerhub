@@ -6,7 +6,7 @@ export interface FMPQuoteResponse {
   symbol: string;
   name: string;
   price: number;
-  changesPercentage: number;
+  changePercentage: number;
   change: number;
   dayLow: number;
   dayHigh: number;
@@ -23,23 +23,23 @@ export interface FMPDividend {
   recordDate?: string;
 }
 
-export interface FMPDividendHistory {
-  historical?: FMPDividend[];
-}
-
 export interface FMPEarningsItem {
   date: string;
-  quarter: number;
+  quarter?: number;
   fiscalYear?: number;
+  epsEstimated?: number;
+  /** Pre-stable name, still accepted because the stable shape is unverified. */
   epsEstimate?: number;
   epsActual?: number;
   revenueEstimated?: number;
+  revenueActual?: number;
+  /** Pre-stable name, still accepted because the stable shape is unverified. */
   revenue?: number;
 }
 
 export interface FMPRating {
   rating: string;
-  ratingTargetPrice?: number;
+  overallScore?: number;
 }
 
 export interface FMPHistoricalItem {
@@ -49,10 +49,6 @@ export interface FMPHistoricalItem {
   low: number;
   close: number;
   volume: number;
-}
-
-export interface FMPHistoricalResponse {
-  historical?: FMPHistoricalItem[];
 }
 
 export interface FMPProfile {
@@ -74,5 +70,7 @@ export interface FMPProfile {
   state?: string;
   image?: string;
   ipoDate?: string;
+  marketCap?: number;
+  /** Pre-stable field name, still accepted because the stable shape is unverified. */
   mktCap?: number;
 }

@@ -24,6 +24,9 @@ export const QuoteDataSchema = z.object({
   volume: z.number().nonnegative().optional(),
   timestamp: z.coerce.date(),
   currency: z.string().optional().default("USD"),
+  priceBasis: z.literal("end_of_day").optional(),
+  asOfDate: z.string().optional(),
+  fallbackSource: z.string().optional(),
   weekHigh52: z.number().positive().optional(),
   weekLow52: z.number().positive().optional(),
   // Extended hours

@@ -6,8 +6,30 @@
  * time series; pair with `HealthMetricsStore.deleteOlderThan` to prune.
  */
 
-import type { HealthMonitor } from "./health-monitor.js";
-import type { HealthMetricsStore } from "../ports/health-store.js";
+import type { HealthMetrics, HealthMonitor } from "./health-monitor.js";
+import type {
+  HealthMetricRecord,
+  HealthMetricsStore,
+} from "../ports/health-store.js";
+
+/** The durable form of a provider's current metrics. */
+export function toHealthRecord(
+  providerName: string,
+  metrics: HealthMetrics,
+  timestamp: Date,
+): HealthMetricRecord {
+  return {
+    providerName,
+    timestamp,
+    successCount: metrics.successCount,
+    failureCount: metrics.failureCount,
+    avgLatencyMs: metrics.avgLatencyMs,
+    consecutiveFailures: metrics.consecutiveFailures,
+    status: metrics.status,
+    lastSuccessAt: metrics.lastSuccessAt ?? null,
+    lastFailureAt: metrics.lastFailureAt ?? null,
+  };
+}
 
 /**
  * Write a point-in-time snapshot of every tracked provider's health to the
@@ -21,17 +43,7 @@ export async function flushHealthMetrics(
   const all = monitor.getAllMetrics();
   let written = 0;
   for (const [providerName, m] of all) {
-    await store.insertHealthMetric({
-      providerName,
-      timestamp: now,
-      successCount: m.successCount,
-      failureCount: m.failureCount,
-      avgLatencyMs: m.avgLatencyMs,
-      consecutiveFailures: m.consecutiveFailures,
-      status: m.status,
-      lastSuccessAt: m.lastSuccessAt ?? null,
-      lastFailureAt: m.lastFailureAt ?? null,
-    });
+    await store.insertHealthMetric(toHealthRecord(providerName, m, now));
     written++;
   }
   return written;

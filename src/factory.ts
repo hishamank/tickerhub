@@ -101,6 +101,7 @@ export function createAggregator(
     registry,
     credentials,
     healthMonitor,
+    healthStore,
     ...(options.rateLimitStore
       ? { rateLimitTracker: new RateLimitTracker(options.rateLimitStore) }
       : {}),

@@ -36,6 +36,8 @@ export enum ProviderErrorCode {
   RATE_LIMIT_EXCEEDED = "RATE_LIMIT_EXCEEDED",
   SYMBOL_NOT_FOUND = "SYMBOL_NOT_FOUND",
   AUTHENTICATION_FAILED = "AUTHENTICATION_FAILED",
+  /** Valid credentials, but the plan does not include this endpoint/data. */
+  ENTITLEMENT_REQUIRED = "ENTITLEMENT_REQUIRED",
   NETWORK_ERROR = "NETWORK_ERROR",
   TIMEOUT = "TIMEOUT",
   INVALID_REQUEST = "INVALID_REQUEST",
@@ -98,6 +100,12 @@ export interface MarketDataProvider {
 
   /** Rate limit configuration */
   readonly rateLimit: RateLimitConfig;
+
+  /**
+   * True when every HTTP request goes through `budgetedFetch`, so quota is
+   * spent per request. Otherwise the aggregator counts one unit per call.
+   */
+  readonly meteredPerHttpRequest?: boolean;
 
   /**
    * Fetch current stock quote (required for all providers)
